@@ -1,20 +1,12 @@
-use clap::Command;
-mod news_command;
+use std::error::Error;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let news_command_factory = news_command::NewsCommandFactory::new();
-    let news_command = news_command_factory.generate();
+mod api_client;
+mod cli;
+mod ui;
 
-    let cmd = Command::new("bugle")
-        .bin_name("bugle")
-        .subcommand_required(true)
-        .subcommand(news_command);
-
-    let matches = cmd.get_matches();
-    match matches.subcommand() {
-        Some(("news", matches)) => news_command_factory.handle(matches),
-        _ => unreachable!("clap should have caught this"),
-    };
-
+// see - https://github.com/16arpi/meteo-tui
+// TODO: consider ratatui
+fn main() -> Result<(), Box<dyn Error>> {
+    cli::run_app();
     Ok(())
 }
