@@ -236,9 +236,16 @@ pub struct HistoricalUvIndex {
 
 static API_BASE: &str = "https://api.openweathermap.org/data/2.5/";
 
-pub async fn get_current_weather() -> Result<WeatherReportCurrent, reqwest::Error> {
-    let url = Url::parse(API_BASE).unwrap();
+pub async fn get_current_weather(
+    coordinates: Coordinates,
+    api_key: String,
+) -> Result<WeatherReportCurrent, reqwest::Error> {
+    let mut url = Url::parse(API_BASE).unwrap();
     url.join("weather").unwrap();
+
+    url.set_query(Some(&coordinates.lat.to_string()));
+    url.set_query(Some(&coordinates.lon.to_string()));
+    url.set_query(Some(&api_key.to_string()));
 
     let response = reqwest::get(url).await?;
     let report: WeatherReportCurrent = response.json().await?;
