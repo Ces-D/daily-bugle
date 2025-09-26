@@ -15,26 +15,6 @@ const SCOPES = [
 const CALLBACK_PATH = "/callback/google";
 const SERVER_PORT = 3000;
 
-export async function googleCalenderClient(credentialFilePath: string) {
-  const file = await readFile(credentialFilePath, { encoding: "utf-8" });
-  const credentials = JSON.parse(file);
-
-  const oAuth2Client = new OAuth2Client(
-    credentials.web.client_id,
-    credentials.web.client_secret,
-    credentials.web.redirect_uris[0],
-  );
-
-  const authorizeUrl = oAuth2Client.generateAuthUrl({
-    access_type: "offline",
-    scope: SCOPES,
-  });
-
-  const validClient = await createCallbackServer(oAuth2Client, authorizeUrl);
-  const calendar = google.calendar({ version: "v3", auth: validClient });
-  return calendar;
-}
-
 function createCallbackServer(
   client: OAuth2Client,
   authURL: string,
@@ -70,4 +50,24 @@ function createCallbackServer(
       }
     });
   });
+}
+
+export async function googleCalenderClient(credentialFilePath: string) {
+  const file = await readFile(credentialFilePath, { encoding: "utf-8" });
+  const credentials = JSON.parse(file);
+
+  const oAuth2Client = new OAuth2Client(
+    credentials.web.client_id,
+    credentials.web.client_secret,
+    credentials.web.redirect_uris[0],
+  );
+
+  const authorizeUrl = oAuth2Client.generateAuthUrl({
+    access_type: "offline",
+    scope: SCOPES,
+  });
+
+  const validClient = await createCallbackServer(oAuth2Client, authorizeUrl);
+  const calendar = google.calendar({ version: "v3", auth: validClient });
+  return calendar;
 }
