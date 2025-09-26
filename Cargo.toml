@@ -1,16 +1,23 @@
-[package]
-name = "daily-bugle"
+[workspace]
+resolver = "3"
+members = ["calendar", "cli", "config", "weather"]
+default-members = ["cli"]
+
+[workspace.package]
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
+authors = ["Cesar <58753718+Ces-D@users.noreply.github.com>"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[workspace.dependencies]
+anyhow = "1.0.100"
+clap = { version = "4.5.47", features = ["derive"] }
+reqwest = { version = "0.12.23", features = ["json"] }
+serde = { version = "1.0.225", features = ["derive"] }
+toml = "0.9.7"
+url = "2.5.7"
+tokio = { version = "1", features = ["full"] }
+serde_json = "1.0.145"
+rrule = "0.14.0"
 
-[dependencies]
-clap = { version = "4.3.4", features = ["derive"] }
-crossterm = "0.26.1"
-directories = "5.0.1"
-ratatui = { version = "0.22.0", features = ["all-widgets", "crossterm"] }
-reqwest = { version = "0.11.18", features = ["json"] }
-serde = { version = "1.0.164", features = ["derive"] }
-serde_json = "1.0.104"
-toml = "0.7.4"
+config = { path = "./config" }
+weather = { path = "./weather" }

@@ -1,0 +1,12 @@
+[package]
+name = "calendar"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[lib]
+path = "calendar.rs"
+
+[dependencies]
+anyhow.workspace = true
+rrule.workspace = true

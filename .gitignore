@@ -1,1 +1,5 @@
-/target
+target
+dist
+node_modules
+*/pnpm-lock.yaml
+.DS_Store
