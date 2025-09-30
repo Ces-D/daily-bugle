@@ -1,5 +1,3 @@
-// TODO: create calendar events
-
 import { googleCalenderClient } from "./client.js";
 import { createBaseCalendar } from "./calendar.js";
 
@@ -9,26 +7,31 @@ const COMMANDS = {
 };
 
 const main = async () => {
-  const [command, ...args] = process.argv;
+  const [, , command, ...args] = process.argv;
   if (Object.values(COMMANDS).includes(command)) {
     switch (command) {
       case COMMANDS.createBaseCalendar: {
         const [credentialFilePath] = args;
         const calendarClient = await googleCalenderClient(credentialFilePath);
-        await createBaseCalendar(calendarClient);
-        break;
+        return createBaseCalendar(calendarClient);
       }
       case COMMANDS.test: {
-        const wait = new Promise((resolve) => {
+        const wait: Promise<String> = new Promise((resolve) => {
           setTimeout(() => {
-            console.log("Successfully tested node wrapper");
-            resolve(undefined);
+            resolve("Success");
           }, 2_000);
         });
-        await wait;
+        return wait;
+      }
+      default: {
+        throw new Error("Not supported case");
       }
     }
+  } else {
+    throw new Error(`Not supported command: ${command}`);
   }
 };
 
-main();
+main().then((res) => {
+  console.log(res);
+});

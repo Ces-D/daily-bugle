@@ -1,10 +1,11 @@
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use clap::Parser;
 use serde_json::json;
 
 #[derive(Debug, clap::Subcommand)]
 enum Command {
     Weather { postal_code: String, complete: bool },
+    Test,
 }
 
 #[derive(Debug, clap::Parser)]
@@ -44,6 +45,21 @@ async fn main() -> anyhow::Result<()> {
             } else {
                 bail!("Config.weather must be populated")
             }
+        }
+        Command::Test => {
+            let o = std::process::Command::new("node")
+                .arg("google/dist/init.js")
+                .arg("test")
+                .output()
+                .expect("Failed to execute node script");
+            if o.status.success() {
+                let stdout = String::from_utf8_lossy(&o.stdout);
+                println!("Node response: {}", stdout);
+            } else {
+                let stderr = String::from_utf8_lossy(&o.stderr);
+                eprintln!("Node.js script failed with error: {}", stderr.trim());
+            }
+            Ok(())
         }
     }
 }
