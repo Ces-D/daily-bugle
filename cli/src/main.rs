@@ -1,11 +1,24 @@
+mod logger;
+
 use anyhow::{Context, bail};
-use clap::Parser;
+use clap::{Parser, ValueEnum};
+use log::trace;
 use serde_json::json;
+use time_out::scrape::{ThingsToDoCycle, scrape_things_to_do};
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum TimePeriod {
+    Today,
+    Week,
+    Weekend,
+    Month,
+}
 
 #[derive(Debug, clap::Subcommand)]
 enum Command {
     Weather { postal_code: String, complete: bool },
-    Test,
+    TimeOut { events: TimePeriod },
+    TestNode,
 }
 
 #[derive(Debug, clap::Parser)]
@@ -17,6 +30,7 @@ struct App {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    logger::init_logging();
     let app = App::parse();
     let bugle_config = config::read_config_file()?;
 
@@ -46,7 +60,43 @@ async fn main() -> anyhow::Result<()> {
                 bail!("Config.weather must be populated")
             }
         }
-        Command::Test => {
+        Command::TimeOut { events } => {
+            let things_to_do = match events {
+                TimePeriod::Today => {
+                    scrape_things_to_do(
+                        ThingsToDoCycle::Today,
+                        config::local_storage_dir_location()?,
+                    )
+                    .await?
+                }
+                TimePeriod::Week => {
+                    scrape_things_to_do(
+                        ThingsToDoCycle::Week,
+                        config::local_storage_dir_location()?,
+                    )
+                    .await?
+                }
+                TimePeriod::Weekend => {
+                    scrape_things_to_do(
+                        ThingsToDoCycle::Weekend,
+                        config::local_storage_dir_location()?,
+                    )
+                    .await?
+                }
+                TimePeriod::Month => {
+                    scrape_things_to_do(
+                        ThingsToDoCycle::Month,
+                        config::local_storage_dir_location()?,
+                    )
+                    .await?
+                }
+            };
+            trace!("Timeout request complete");
+            let writer = std::io::stdout();
+            serde_json::to_writer_pretty(writer, &things_to_do)?;
+            Ok(())
+        }
+        Command::TestNode => {
             let o = std::process::Command::new("node")
                 .arg("google/dist/init.js")
                 .arg("test")

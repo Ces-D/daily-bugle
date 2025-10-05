@@ -1,0 +1,21 @@
+[package]
+name = "time_out"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[lib]
+path = "time_out.rs"
+
+[dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+chrono-tz.workspace = true
+headless_chrome.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+log.workspace = true
+scraper.workspace = true
+
+fs_cache.workspace = true

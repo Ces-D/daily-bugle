@@ -1,0 +1,13 @@
+[package]
+name = "fs_cache"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[lib]
+path = "fs_cache.rs"
+
+[dependencies]
+serde_json.workspace = true
+
+config.workspace = true

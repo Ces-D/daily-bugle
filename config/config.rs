@@ -1,4 +1,4 @@
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -46,13 +46,17 @@ fn config_location() -> anyhow::Result<PathBuf> {
             }
             std::env::VarError::NotUnicode(os_string) => {
                 bail!(
-                    "Failed to intepret {} env var: {:?}",
+                    "Failed to interpret {} env var: {:?}",
                     DAILY_BUGLE_CONFIG_VAR,
                     os_string
                 )
             }
         },
     }
+}
+pub fn local_storage_dir_location() -> anyhow::Result<PathBuf> {
+    let path = std::env::home_dir().expect("Unable to locate home directory");
+    Ok(path.join(".local").join("state").join(CONFIG_DIR))
 }
 
 pub fn read_config_file() -> anyhow::Result<Config> {
