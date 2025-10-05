@@ -1,6 +1,8 @@
-use std::fs;
-use std::io::{self, Read, Write};
-use std::path::{Path, PathBuf};
+use std::{
+    fs,
+    io::{self, Read, Write},
+    path::{Path, PathBuf},
+};
 
 /// A simple local filesystem storage:
 /// - Each value is stored in its own file

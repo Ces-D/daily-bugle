@@ -1,5 +1,5 @@
-use env_logger::{Builder, Env, Target};
-use log::{LevelFilter, trace};
+use env_logger::Env;
+use log::trace;
 
 pub fn init_logging() {
     const MEMBERS: [&str; 7] = [

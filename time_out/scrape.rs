@@ -11,7 +11,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use chrono::{DateTime, Datelike};
 use chrono_tz::{America::New_York, Tz};
 use headless_chrome::{Browser, Element, LaunchOptions, Tab, browser::default_executable};
-use log::{debug, error, info, trace};
+use log::{error, trace};
 use reqwest::{
     StatusCode,
     header::{ACCEPT, COOKIE, HeaderMap, HeaderValue},
@@ -172,7 +172,7 @@ fn scrape_article_content(tab: Arc<Tab>) -> Result<Vec<ArticleContent>> {
         .wait_for_elements("article.tile._article_osmln_1")
         .expect("Unable to create time selector");
     let mut article_contents = Vec::<ArticleContent>::new();
-    for (index, content) in content_els.iter().enumerate() {
+    for content in content_els {
         let title_el = match content.find_element("div._title_osmln_9 a") {
             Ok(el) => el,
             Err(_) => {
@@ -189,7 +189,7 @@ fn scrape_article_content(tab: Arc<Tab>) -> Result<Vec<ArticleContent>> {
         };
         let summary_el = match content.find_elements("div._summaryContainer_osmln_364 p") {
             Ok(el) => el,
-            Err(e) => {
+            Err(_) => {
                 bail!("Unable to find content summary");
             }
         };
