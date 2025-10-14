@@ -54,9 +54,9 @@ fn config_location() -> anyhow::Result<PathBuf> {
         },
     }
 }
-pub fn local_storage_dir_location() -> anyhow::Result<PathBuf> {
+pub fn local_storage_dir_location() -> PathBuf {
     let path = std::env::home_dir().expect("Unable to locate home directory");
-    Ok(path.join(".local").join("state").join(CONFIG_DIR))
+    path.join(".local").join("state").join(CONFIG_DIR)
 }
 
 pub fn read_config_file() -> anyhow::Result<Config> {

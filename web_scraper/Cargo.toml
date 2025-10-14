@@ -1,11 +1,11 @@
 [package]
-name = "time_out"
+name = "web_scraper"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 
 [lib]
-path = "time_out.rs"
+path = "web_scraper.rs"
 
 [dependencies]
 anyhow.workspace = true
@@ -13,9 +13,14 @@ chrono.workspace = true
 chrono-tz.workspace = true
 headless_chrome.workspace = true
 reqwest.workspace = true
+flate2.workspace = true
+quick-xml.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 log.workspace = true
 scraper.workspace = true
 
-fs_cache.workspace = true
+local_storage.workspace = true
+
+[dev-dependencies]
+env_logger.workspace = true

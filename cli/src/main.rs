@@ -4,7 +4,7 @@ use anyhow::{Context, bail};
 use clap::{Parser, ValueEnum};
 use log::trace;
 use serde_json::json;
-use time_out::scrape::{ThingsToDoCycle, scrape_things_to_do};
+use web_scraper::time_out::{ThingsToDoCycle, scrape_things_to_do};
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum TimePeriod {
@@ -16,8 +16,15 @@ enum TimePeriod {
 
 #[derive(Debug, clap::Subcommand)]
 enum Command {
+    #[clap(about = "See the weather in your area")]
     Weather { postal_code: String, complete: bool },
+    #[clap(about = "Get nyc events for specific time periods")]
     TimeOut { events: TimePeriod },
+    #[clap(about = "Get blogs from Armin Ronacher")]
+    Lucumr,
+    #[clap(about = "Get items from the MDN site")]
+    Mdn,
+    #[clap(about = "Set or get countdowns ")]
     TestNode,
 }
 
@@ -62,40 +69,31 @@ async fn main() -> anyhow::Result<()> {
         }
         Command::TimeOut { events } => {
             let things_to_do = match events {
-                TimePeriod::Today => {
-                    scrape_things_to_do(
-                        ThingsToDoCycle::Today,
-                        config::local_storage_dir_location()?,
-                    )
-                    .await?
-                }
-                TimePeriod::Week => {
-                    scrape_things_to_do(
-                        ThingsToDoCycle::Week,
-                        config::local_storage_dir_location()?,
-                    )
-                    .await?
-                }
-                TimePeriod::Weekend => {
-                    scrape_things_to_do(
-                        ThingsToDoCycle::Weekend,
-                        config::local_storage_dir_location()?,
-                    )
-                    .await?
-                }
-                TimePeriod::Month => {
-                    scrape_things_to_do(
-                        ThingsToDoCycle::Month,
-                        config::local_storage_dir_location()?,
-                    )
-                    .await?
-                }
+                TimePeriod::Today => scrape_things_to_do(ThingsToDoCycle::Today).await?,
+                TimePeriod::Week => scrape_things_to_do(ThingsToDoCycle::Week).await?,
+                TimePeriod::Weekend => scrape_things_to_do(ThingsToDoCycle::Weekend).await?,
+                TimePeriod::Month => scrape_things_to_do(ThingsToDoCycle::Month).await?,
             };
             trace!("Timeout request complete");
             let writer = std::io::stdout();
             serde_json::to_writer_pretty(writer, &things_to_do)?;
             Ok(())
         }
+        Command::Lucumr => {
+            let entries = web_scraper::lucumr::scrape_atom_feed().await?;
+            trace!("Armin Ronacher blog Lucumr request complete");
+            let writer = std::io::stdout();
+            serde_json::to_writer_pretty(writer, &entries)?;
+            Ok(())
+        }
+        Command::Mdn => {
+            let entries = web_scraper::mdn::scrape_mdn_sitemap().await?;
+            trace!("MDN request complete");
+            let writer = std::io::stdout();
+            serde_json::to_writer_pretty(writer, &entries)?;
+            Ok(())
+        }
+
         Command::TestNode => {
             let o = std::process::Command::new("node")
                 .arg("google/dist/init.js")

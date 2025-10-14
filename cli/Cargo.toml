@@ -9,9 +9,10 @@ anyhow.workspace = true
 clap.workspace = true
 env_logger.workspace = true
 log.workspace = true
+rrule.workspace = true
 tokio.workspace = true
 serde_json.workspace = true
 
 config.workspace = true
 weather.workspace = true
-time_out.workspace = true
+web_scraper.workspace = true

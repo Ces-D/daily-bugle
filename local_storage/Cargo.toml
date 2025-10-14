@@ -1,13 +1,16 @@
 [package]
-name = "fs_cache"
+name = "local_storage"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 
 [lib]
-path = "fs_cache.rs"
+path = "local_storage.rs"
 
 [dependencies]
 serde_json.workspace = true
+chrono.workspace = true
+chrono-tz.workspace = true
+log.workspace = true
 
 config.workspace = true

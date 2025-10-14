@@ -1,3 +1,4 @@
+// TimeOut NYC
 pub const TODAY_EVENTS_URL: &str =
     "https://www.timeout.com/newyork/things-to-do/things-to-do-in-new-york-today";
 pub const WEEK_EVENTS_URL: &str =
@@ -30,3 +31,16 @@ pub const DECEMBER_EVENTS_URL: &str =
     "https://www.timeout.com/newyork/events-calendar/december-events-calendar";
 
 pub const TIMEOUT_STORAGE_PREFIX: &str = "time-out-nyc";
+
+// Armin Ronacher
+pub const ARMIN_RONACHER_ATOM_FEED_URL: &str = "https://lucumr.pocoo.org/feed.atom";
+
+// Hacker News
+pub const HACKER_NEWS_NEWS_URL: &str = "https://news.ycombinator.com/news"; //  Pagination via `?p={}`
+pub const HACKER_NEWS_JOBS_URL: &str = "https://news.ycombinator.com/jobs";
+
+// MDN
+pub const MDN_SITEMAP_URL: &str = "https://developer.mozilla.org/sitemaps/en-us/sitemap.xml.gz";
+
+// WIKIPEDIA
+pub const WIKIPEDIA_ROOT_URL: &str = "https://en.wikipedia.org/wiki/";
