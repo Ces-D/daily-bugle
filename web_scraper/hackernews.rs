@@ -1,8 +1,10 @@
-use crate::constant::{HACKER_NEWS_JOBS_URL, HACKER_NEWS_NEWS_URL};
+use crate::{
+    ScrapedEngineeringItem, ScrapedEngineeringItems,
+    constant::{HACKER_NEWS_JOBS_URL, HACKER_NEWS_NEWS_URL},
+};
 use anyhow::{Context, Result, bail};
 use reqwest::StatusCode;
 use scraper::Selector;
-use serde::{Deserialize, Serialize};
 
 #[derive(Default)]
 pub enum Page {
@@ -31,36 +33,38 @@ async fn request_hackernews(url: &str, page: Page) -> Result<String> {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct Entry {
-    title: String,
-    link: String,
-}
-
-pub async fn get_hackernews_news(page: Option<Page>) -> Result<Vec<Entry>> {
+pub async fn scrape_hackernews_news(page: Option<Page>) -> Result<ScrapedEngineeringItems> {
     let res = request_hackernews(HACKER_NEWS_NEWS_URL, page.unwrap_or_default()).await?;
     let html = scraper::Html::parse_document(&res);
     let title_selector =
         Selector::parse("tr.athing.submission > td.title > span.titleline > a").unwrap();
-    let mut entries: Vec<Entry> = Vec::new();
+    let mut entries: ScrapedEngineeringItems = Vec::new();
     for element in html.select(&title_selector) {
-        let link = element.attr("href").unwrap().to_string();
+        let url = element.attr("href").unwrap().to_string();
         let title = element.inner_html();
-        entries.push(Entry { title, link });
+        entries.push(ScrapedEngineeringItem {
+            title,
+            url,
+            ..Default::default()
+        });
     }
     Ok(entries)
 }
 
-pub async fn get_hackernews_jobs(page: Option<Page>) -> Result<Vec<Entry>> {
+pub async fn scrape_hackernews_jobs(page: Option<Page>) -> Result<ScrapedEngineeringItems> {
     let res = request_hackernews(HACKER_NEWS_JOBS_URL, page.unwrap_or_default()).await?;
     let html = scraper::Html::parse_document(&res);
     let title_selector =
         Selector::parse("tr.athing.submission > td.title > span.titleline > a").unwrap();
-    let mut entries: Vec<Entry> = Vec::new();
+    let mut entries: ScrapedEngineeringItems = Vec::new();
     for element in html.select(&title_selector) {
-        let link = element.attr("href").unwrap().to_string();
+        let url = element.attr("href").unwrap().to_string();
         let title = element.inner_html();
-        entries.push(Entry { title, link });
+        entries.push(ScrapedEngineeringItem {
+            title,
+            url,
+            ..Default::default()
+        });
     }
     Ok(entries)
 }

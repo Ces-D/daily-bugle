@@ -7,11 +7,18 @@ use serde_json::json;
 use web_scraper::time_out::{ThingsToDoCycle, scrape_things_to_do};
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
-enum TimePeriod {
+enum TimeOutTimePeriod {
     Today,
     Week,
     Weekend,
     Month,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum, Default)]
+enum HackerNewsLink {
+    #[default]
+    News,
+    Jobs,
 }
 
 #[derive(Debug, clap::Subcommand)]
@@ -19,11 +26,13 @@ enum Command {
     #[clap(about = "See the weather in your area")]
     Weather { postal_code: String, complete: bool },
     #[clap(about = "Get nyc events for specific time periods")]
-    TimeOut { events: TimePeriod },
+    TimeOut { events: TimeOutTimePeriod },
     #[clap(about = "Get blogs from Armin Ronacher")]
     Lucumr,
     #[clap(about = "Get items from the MDN site")]
     Mdn,
+    #[clap(about = "Get news or job items from the HackerNews site")]
+    HackerNews { page: HackerNewsLink },
     #[clap(about = "Set or get countdowns ")]
     TestNode,
 }
@@ -69,10 +78,10 @@ async fn main() -> anyhow::Result<()> {
         }
         Command::TimeOut { events } => {
             let things_to_do = match events {
-                TimePeriod::Today => scrape_things_to_do(ThingsToDoCycle::Today).await?,
-                TimePeriod::Week => scrape_things_to_do(ThingsToDoCycle::Week).await?,
-                TimePeriod::Weekend => scrape_things_to_do(ThingsToDoCycle::Weekend).await?,
-                TimePeriod::Month => scrape_things_to_do(ThingsToDoCycle::Month).await?,
+                TimeOutTimePeriod::Today => scrape_things_to_do(ThingsToDoCycle::Today).await?,
+                TimeOutTimePeriod::Week => scrape_things_to_do(ThingsToDoCycle::Week).await?,
+                TimeOutTimePeriod::Weekend => scrape_things_to_do(ThingsToDoCycle::Weekend).await?,
+                TimeOutTimePeriod::Month => scrape_things_to_do(ThingsToDoCycle::Month).await?,
             };
             trace!("Timeout request complete");
             let writer = std::io::stdout();
@@ -80,7 +89,7 @@ async fn main() -> anyhow::Result<()> {
             Ok(())
         }
         Command::Lucumr => {
-            let entries = web_scraper::lucumr::scrape_atom_feed().await?;
+            let entries = web_scraper::lucumr::scrape_lucumr_atom_feed().await?;
             trace!("Armin Ronacher blog Lucumr request complete");
             let writer = std::io::stdout();
             serde_json::to_writer_pretty(writer, &entries)?;
@@ -93,7 +102,20 @@ async fn main() -> anyhow::Result<()> {
             serde_json::to_writer_pretty(writer, &entries)?;
             Ok(())
         }
-
+        Command::HackerNews { page } => {
+            let entries = match page {
+                HackerNewsLink::News => {
+                    web_scraper::hackernews::scrape_hackernews_news(None).await?
+                }
+                HackerNewsLink::Jobs => {
+                    web_scraper::hackernews::scrape_hackernews_jobs(None).await?
+                }
+            };
+            trace!("Hackernews request complete");
+            let writer = std::io::stdout();
+            serde_json::to_writer_pretty(writer, &entries)?;
+            Ok(())
+        }
         Command::TestNode => {
             let o = std::process::Command::new("node")
                 .arg("google/dist/init.js")

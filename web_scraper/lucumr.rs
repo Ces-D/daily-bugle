@@ -1,129 +1,13 @@
-use crate::constant::ARMIN_RONACHER_ATOM_FEED_URL;
+use crate::{
+    ScrapedEngineeringItem, ScrapedEngineeringItems,
+    constant::ARMIN_RONACHER_ATOM_FEED_URL,
+    xml::{XMLHandler, parse_xml_with},
+};
 use anyhow::{Context, Result, bail};
-use chrono::FixedOffset;
-use quick_xml::{events::Event, reader::Reader};
+use quick_xml::reader::Reader;
 use reqwest::StatusCode;
 
-#[derive(serde::Serialize, serde::Deserialize)]
-pub struct Entry {
-    id: String,
-    title: String,
-    published: chrono::DateTime<FixedOffset>,
-    updated: chrono::DateTime<FixedOffset>,
-    author_name: String,
-    content: String,
-}
-
-fn parse_xml_entries(mut reader: Reader<&[u8]>) -> Result<Vec<Entry>> {
-    let mut entries: Vec<Entry> = Vec::new();
-    let mut buf = Vec::new();
-
-    let mut current_entry: Option<Entry> = None;
-    let mut current_element = String::new();
-    let mut current_text = String::new();
-    let mut in_author = false;
-
-    loop {
-        match reader.read_event_into(&mut buf) {
-            Err(e) => bail!("Error at position {}: {:?}", reader.error_position(), e),
-            Ok(Event::Eof) => break,
-
-            Ok(Event::Start(e)) => {
-                let name = e.name();
-                match name.as_ref() {
-                    b"entry" => {
-                        current_entry = Some(Entry {
-                            id: String::new(),
-                            title: String::new(),
-                            published: chrono::DateTime::parse_from_rfc3339(
-                                "1970-01-01T00:00:00+00:00",
-                            )?,
-                            updated: chrono::DateTime::parse_from_rfc3339(
-                                "1970-01-01T00:00:00+00:00",
-                            )?,
-                            author_name: String::new(),
-                            content: String::new(),
-                        });
-                    }
-                    b"id" | b"title" | b"published" | b"updated" | b"content" => {
-                        current_element = String::from_utf8_lossy(name.as_ref()).to_string();
-                        current_text.clear();
-                    }
-                    b"author" => {
-                        in_author = true;
-                    }
-                    b"name" if in_author => {
-                        current_element = "author_name".to_string();
-                        current_text.clear();
-                    }
-                    _ => {}
-                }
-            }
-
-            Ok(Event::End(e)) => {
-                let name = e.name();
-                match name.as_ref() {
-                    b"entry" => {
-                        if let Some(entry) = current_entry.take() {
-                            entries.push(entry);
-                        }
-                    }
-                    b"author" => {
-                        in_author = false;
-                    }
-                    b"id" | b"title" | b"published" | b"updated" | b"content" | b"name" => {
-                        if let Some(entry) = &mut current_entry {
-                            match current_element.as_str() {
-                                "id" => entry.id = current_text.clone(),
-                                "title" => entry.title = current_text.clone(),
-                                "published" => {
-                                    if let Ok(dt) =
-                                        chrono::DateTime::parse_from_rfc3339(&current_text)
-                                    {
-                                        entry.published = dt;
-                                    }
-                                }
-                                "updated" => {
-                                    if let Ok(dt) =
-                                        chrono::DateTime::parse_from_rfc3339(&current_text)
-                                    {
-                                        entry.updated = dt;
-                                    }
-                                }
-                                "content" => entry.content = current_text.clone(),
-                                "author_name" => entry.author_name = current_text.clone(),
-                                _ => {}
-                            }
-                        }
-                        current_element.clear();
-                        current_text.clear();
-                    }
-                    _ => {}
-                }
-            }
-
-            Ok(Event::Text(e)) => {
-                if !current_element.is_empty() {
-                    current_text.push_str(&e.decode()?.into_owned());
-                }
-            }
-
-            Ok(Event::CData(e)) => {
-                if current_element == "content" {
-                    // TODO: I may want the actual inner text not the html content
-                    current_text.push_str(&e.xml11_content()?.into_owned());
-                }
-            }
-
-            _ => {}
-        }
-        buf.clear();
-    }
-
-    Ok(entries)
-}
-
-pub async fn scrape_atom_feed() -> Result<Vec<Entry>> {
+pub async fn request_lucumr_sitemap() -> Result<String> {
     let res = reqwest::get(ARMIN_RONACHER_ATOM_FEED_URL)
         .await
         .with_context(|| "Failed to request Armin Ronacher's Atom feed")?;
@@ -135,9 +19,87 @@ pub async fn scrape_atom_feed() -> Result<Vec<Entry>> {
         )
     } else {
         let xml = res.text().await?;
-        let reader = Reader::from_str(&xml);
-        parse_xml_entries(reader)
+        Ok(xml)
     }
+}
+
+#[derive(Default)]
+struct AtomFeed {
+    items: ScrapedEngineeringItems,
+    current_item: Option<ScrapedEngineeringItem>,
+    current_element: String,
+    current_text: String,
+}
+
+impl XMLHandler<ScrapedEngineeringItems> for AtomFeed {
+    fn start(&mut self, name: &[u8]) -> Result<()> {
+        match name {
+            b"entry" => {
+                self.current_item = Some(ScrapedEngineeringItem::default());
+            }
+            b"id" | b"title" | b"published" | b"updated" | b"content" => {
+                self.current_element = String::from_utf8_lossy(name.as_ref()).to_string();
+                self.current_text.clear();
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn text(&mut self, txt: &str) -> Result<()> {
+        if !self.current_element.is_empty() {
+            self.current_text.push_str(txt.trim());
+        }
+        Ok(())
+    }
+
+    fn end(&mut self, name: &[u8]) -> Result<()> {
+        match name {
+            b"entry" => {
+                if let Some(entry) = self.current_item.take() {
+                    self.items.push(entry);
+                }
+            }
+            b"id" | b"title" | b"published" | b"updated" | b"content" => {
+                if let Some(entry) = &mut self.current_item {
+                    match self.current_element.as_str() {
+                        "id" => entry.url = self.current_text.clone(),
+                        "title" => entry.title = self.current_text.clone(),
+                        "published" => {
+                            if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&self.current_text)
+                            {
+                                entry.published = Some(dt.to_utc());
+                            }
+                        }
+                        "updated" => {
+                            if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&self.current_text)
+                            {
+                                entry.updated = Some(dt.to_utc());
+                            }
+                        }
+                        "content" => entry.summary = Some(self.current_text.clone()),
+                        _ => {}
+                    }
+                }
+                self.current_element.clear();
+                self.current_text.clear();
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn items(self) -> ScrapedEngineeringItems {
+        self.items
+    }
+}
+
+pub async fn scrape_lucumr_atom_feed() -> Result<ScrapedEngineeringItems> {
+    let xml = request_lucumr_sitemap().await?;
+    let reader = Reader::from_str(&xml);
+    let handler = AtomFeed::default();
+    let items = parse_xml_with(reader, handler)?;
+    Ok(items)
 }
 
 #[cfg(test)]
@@ -329,11 +291,11 @@ mod tests {
         ]]></content>
           </entry>"#;
         let reader = Reader::from_str(xml);
-        let entries = parse_xml_entries(reader).expect("Failed to parse xml content");
+        let handler = AtomFeed::default();
+        let entries = parse_xml_with(reader, handler).expect("Failed to parse xml content");
         assert_eq!(entries.len(), 1);
         let first = entries.first().unwrap();
         assert!(first.title == "90%");
-        assert!(first.author_name == "Armin Ronacher");
-        assert!(first.id == "https://lucumr.pocoo.org/2025/9/29/90-percent/");
+        assert!(first.url == "https://lucumr.pocoo.org/2025/9/29/90-percent/");
     }
 }

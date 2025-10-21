@@ -1,40 +1,35 @@
 use crate::{
     ScrapedEngineeringItem, ScrapedEngineeringItems,
-    constant::MDN_SITEMAP_URL,
-    xml::{XMLHandler, naive_date_to_utc, parse_xml_with},
+    constant::OPENAI_SITEMAP_URL,
+    xml::{XMLHandler, parse_xml_with},
 };
-use anyhow::{Context, Result, bail};
-use chrono::NaiveDate;
+use anyhow::{Result, bail};
 use quick_xml::Reader;
 use reqwest::StatusCode;
-use std::io::Read;
 
-async fn request_mdn_sitemap() -> Result<String> {
-    let res = reqwest::get(MDN_SITEMAP_URL).await?;
+async fn request_openai_sitemap() -> Result<String> {
+    let res = reqwest::get(OPENAI_SITEMAP_URL).await?;
     if res.status() != StatusCode::OK {
-        bail!("Failed request to {} - {}", MDN_SITEMAP_URL, res.status());
+        bail!(
+            "Failed request to {} - {}",
+            OPENAI_SITEMAP_URL,
+            res.status()
+        );
     } else {
-        let bytes = res
-            .bytes()
-            .await
-            .with_context(|| "Failed to decode response body")?;
-        // Decompress using flate2
-        let mut decoder = flate2::read::GzDecoder::new(&bytes[..]);
-        let mut xml = String::new();
-        decoder.read_to_string(&mut xml)?;
+        let xml = res.text().await?;
         Ok(xml)
     }
 }
 
 #[derive(Default)]
-struct MDNSitemap {
+struct OpenAISitemap {
     items: ScrapedEngineeringItems,
     current_item: Option<ScrapedEngineeringItem>,
     current_element: String,
     current_text: String,
 }
 
-impl XMLHandler<ScrapedEngineeringItems> for MDNSitemap {
+impl XMLHandler<ScrapedEngineeringItems> for OpenAISitemap {
     fn start(&mut self, name: &[u8]) -> Result<()> {
         match name {
             b"url" => {
@@ -68,9 +63,9 @@ impl XMLHandler<ScrapedEngineeringItems> for MDNSitemap {
                     match self.current_element.as_str() {
                         "loc" => url.url = self.current_text.clone(),
                         "lastmod" => {
-                            if let Ok(d) = NaiveDate::parse_from_str(&self.current_text, "%Y-%m-%d")
+                            if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&self.current_text)
                             {
-                                url.updated = Some(naive_date_to_utc(d));
+                                url.updated = Some(dt.to_utc());
                             }
                         }
                         _ => {}
@@ -89,10 +84,10 @@ impl XMLHandler<ScrapedEngineeringItems> for MDNSitemap {
     }
 }
 
-pub async fn scrape_mdn_sitemap() -> Result<ScrapedEngineeringItems> {
-    let res = request_mdn_sitemap().await?;
+pub async fn scrape_openai_sitemap() -> Result<ScrapedEngineeringItems> {
+    let res = request_openai_sitemap().await?;
     let reader = Reader::from_str(&res);
-    let handler = MDNSitemap::default();
+    let handler = OpenAISitemap::default();
     let items = parse_xml_with(reader, handler)?;
     Ok(items)
 }
@@ -100,43 +95,28 @@ pub async fn scrape_mdn_sitemap() -> Result<ScrapedEngineeringItems> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::xml::naive_date_to_utc;
-    use chrono::NaiveDate;
 
     #[test]
-    fn test_parse_xml_urls() {
-        let xml = r#"<url>
-        <loc>https://developer.mozilla.org/en-US/</loc>
-        </url>
+    fn test_parse_xml() {
+        let xml = r#"
         <url>
-        <loc>https://developer.mozilla.org/en-US/docs/Games/Publishing_games/Game_promotion</loc>
-        <lastmod>2025-07-11</lastmod>
+        <loc>https://openai.com/index/introducing-chatgpt-atlas/</loc>
+        <lastmod>2025-10-21T21:14:43.217Z</lastmod>
         </url>
-        <url>
-        <loc>https://developer.mozilla.org/en-US/docs/Games/Techniques</loc>
-        <lastmod>2025-07-11</lastmod>
-        </url>
-        <url>
-        <loc>https://developer.mozilla.org/en-US/docs/Games/Techniques/2D_collision_detection</loc>
-        <lastmod>2025-07-11</lastmod>
+        <url >
+        <loc>https://openai.com/chatgpt/pricing/</loc>
+        <lastmod>2025-10-21T21:03:39.390Z</lastmod>
         </url>"#;
         let reader = Reader::from_str(xml);
-        let handler = MDNSitemap::default();
+        let handler = OpenAISitemap::default();
         let entries = parse_xml_with(reader, handler).expect("Failed to parse xml content");
-        assert_eq!(entries.len(), 4);
+        assert_eq!(entries.len(), 2);
         let first = entries.first().unwrap();
-        assert_eq!(first.url, "https://developer.mozilla.org/en-US/");
-        assert!(first.updated.is_none());
-        let last = entries.last().unwrap();
         assert_eq!(
-            last.url,
-            "https://developer.mozilla.org/en-US/docs/Games/Techniques/2D_collision_detection"
+            first.url,
+            "https://openai.com/index/introducing-chatgpt-atlas/"
         );
-        assert_eq!(
-            last.updated,
-            Some(naive_date_to_utc(
-                NaiveDate::parse_from_str("2025-07-11", "%Y-%m-%d").unwrap()
-            ))
-        )
+        assert!(first.updated.is_some());
+
     }
 }
