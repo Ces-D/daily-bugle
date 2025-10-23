@@ -1,27 +1,11 @@
 use crate::{
     ScrapedEngineeringItem, ScrapedEngineeringItems,
-    constant::ARMIN_RONACHER_ATOM_FEED_URL,
-    xml::{XMLHandler, parse_xml_with},
+    constant::{ARMIN_RONACHER_ATOM_FEED_URL, ARMIN_RONACHER_STORAGE_CONSTANT},
+    xml::{XMLHandler, parse_xml_with, request_url_document_text},
 };
-use anyhow::{Context, Result, bail};
+use anyhow::Result;
+use local_storage::key::StorageKey;
 use quick_xml::reader::Reader;
-use reqwest::StatusCode;
-
-pub async fn request_lucumr_sitemap() -> Result<String> {
-    let res = reqwest::get(ARMIN_RONACHER_ATOM_FEED_URL)
-        .await
-        .with_context(|| "Failed to request Armin Ronacher's Atom feed")?;
-    if res.status() != StatusCode::OK {
-        bail!(
-            "Failed to request Armin Ronacher's Atom feed: {} - {}",
-            res.status(),
-            res.text().await?
-        )
-    } else {
-        let xml = res.text().await?;
-        Ok(xml)
-    }
-}
 
 #[derive(Default)]
 struct AtomFeed {
@@ -95,11 +79,18 @@ impl XMLHandler<ScrapedEngineeringItems> for AtomFeed {
 }
 
 pub async fn scrape_lucumr_atom_feed() -> Result<ScrapedEngineeringItems> {
-    let xml = request_lucumr_sitemap().await?;
-    let reader = Reader::from_str(&xml);
-    let handler = AtomFeed::default();
-    let items = parse_xml_with(reader, handler)?;
-    Ok(items)
+    match local_storage::find_stored_item(ARMIN_RONACHER_STORAGE_CONSTANT) {
+        Some(items) => Ok(items),
+        None => {
+            let xml = request_url_document_text(ARMIN_RONACHER_ATOM_FEED_URL).await?;
+            let reader = Reader::from_str(&xml);
+            let handler = AtomFeed::default();
+            let items = parse_xml_with(reader, handler)?;
+            let storage_key = StorageKey::new(ARMIN_RONACHER_STORAGE_CONSTANT, None, Some(7));
+            local_storage::write_item_to_storage(storage_key, &items);
+            Ok(items)
+        }
+    }
 }
 
 #[cfg(test)]

@@ -1,63 +1,84 @@
-use chrono::TimeZone;
-use std::path::PathBuf;
+use chrono::{DateTime, Duration, NaiveDateTime, Utc};
+use std::{hash::Hasher, path::PathBuf};
 
-#[derive(Debug, Hash, Clone)]
-pub struct LocalStorageKey(String);
+/// A storage key that compares for equality based only on its `constant` field.
+#[derive(Debug, Clone)]
+pub struct StorageKey {
+    pub constant: String,
+    expires_on: chrono::DateTime<Utc>,
+}
 
-impl LocalStorageKey {
-    /// Constant should be an element related to the type of item being stored
-    pub fn new(constant: &str) -> Self {
-        Self(sanitize(constant))
+impl StorageKey {
+    /// Helper function to create a new key.
+    pub fn new(
+        constant: &str,
+        issued_at: Option<DateTime<Utc>>,
+        lifetime_days: Option<i64>,
+    ) -> Self {
+        let now = match issued_at {
+            Some(n) => n,
+            None => Utc::now(),
+        };
+        let expires = now + Duration::days(lifetime_days.unwrap_or(3));
+        Self {
+            constant: sanitize(constant),
+            expires_on: expires,
+        }
     }
 
-    pub fn push_datetime(mut self, dt: chrono::DateTime<chrono_tz::Tz>) -> Self {
-        let formatted_dt = format!("DT{}", dt.format("%Y%m%d%H%M%S").to_string());
-        let mut key = self.0.clone();
-        key.push_str("__");
-        key.push_str(&formatted_dt);
-        self.0 = key;
-        self
-    }
-
-    /// Adding datetime adds uniqueness to the storage path but not used for comparing equivalence of cache key
-    pub fn datetime(&self, timezone: chrono_tz::Tz) -> Option<chrono::DateTime<chrono_tz::Tz>> {
-        let keys = self.0.split("__");
-        let dt_key = keys.into_iter().find(|v| v.starts_with("DT"))?;
-        let trimmed = &dt_key[2..]; // Remove "DT" prefix
-        let naive_dt = chrono::NaiveDateTime::parse_from_str(trimmed, "%Y%m%d%H%M%S").ok()?;
-        timezone.from_local_datetime(&naive_dt).single()
+    pub fn is_expired(&self) -> bool {
+        self.expires_on < Utc::now()
     }
 }
 
-impl PartialEq for LocalStorageKey {
+/// Implement PartialEq to define custom equality logic.
+/// Two keys are equal if their `constant` fields are equal.
+impl PartialEq for StorageKey {
     fn eq(&self, other: &Self) -> bool {
-        let o = self.0.split_once("__");
-        let n = other.0.split_once("__");
-        if o.is_some() && n.is_some() {
-            o.unwrap().0 == n.unwrap().0 // We only care about the constant being identical
-        } else if o.is_none() && n.is_none() {
-            false
-        } else if o.is_some() && n.is_none() || o.is_none() && n.is_some() {
-            return false;
-        } else {
-            false
+        self.constant == other.constant
+    }
+}
+
+/// Implement Eq since our equality logic is reflexive, symmetric, and transitive.
+impl Eq for StorageKey {}
+
+/// Implement Hash to be consistent with PartialEq.
+/// The hash should only be derived from the `constant` field.
+/// This allows the struct to be used correctly in HashMaps and HashSets.
+impl std::hash::Hash for StorageKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.constant.hash(state);
+    }
+}
+
+impl From<PathBuf> for StorageKey {
+    fn from(value: PathBuf) -> Self {
+        let s: Vec<&str> = value
+            .file_stem()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .split("__")
+            .collect();
+        if s.len() != 3 {
+            panic!("The length pathbuf is not written as expected")
+        }
+        let constant = s.first().unwrap();
+        let expired = s.last().unwrap();
+        let naive = NaiveDateTime::parse_from_str(expired, "%Y%m%d%H%M%S").unwrap();
+        Self {
+            constant: constant.to_string(),
+            expires_on: DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc),
         }
     }
 }
 
-impl Eq for LocalStorageKey {}
-
-impl From<PathBuf> for LocalStorageKey {
-    fn from(value: PathBuf) -> LocalStorageKey {
-        let s = value.file_stem().unwrap().to_str().unwrap();
-        LocalStorageKey(s.to_string())
-    }
-}
-
-impl Into<PathBuf> for &LocalStorageKey {
+impl Into<PathBuf> for &StorageKey {
     fn into(self) -> PathBuf {
+        let formatted_dt = self.expires_on.format("%Y%m%d%H%M%S").to_string();
+        let s = format!("{}__{}", self.constant, formatted_dt);
         let mut path = PathBuf::new();
-        path.push(&self.0);
+        path.push(s);
         path.with_extension("dat");
         path
     }

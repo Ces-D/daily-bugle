@@ -1,21 +1,22 @@
 use crate::{
     ScrapedEngineeringItem, ScrapedEngineeringItems,
-    constant::{OPENAI_SITEMAP_STORAGE_CONSTANT, OPENAI_SITEMAP_URL},
+    constant::{NOTION_BLOG_SITEMAP_STORAGE_CONSTANT, NOTION_BLOG_SITEMAP_URL},
     xml::{XMLHandler, parse_xml_with, request_url_document_text},
 };
 use anyhow::Result;
+use chrono::{DateTime, Utc};
 use local_storage::key::StorageKey;
 use quick_xml::Reader;
 
 #[derive(Default)]
-struct OpenAISitemap {
+struct NotionBlogSitemap {
     items: ScrapedEngineeringItems,
     current_item: Option<ScrapedEngineeringItem>,
     current_element: String,
     current_text: String,
 }
 
-impl XMLHandler<ScrapedEngineeringItems> for OpenAISitemap {
+impl XMLHandler<ScrapedEngineeringItems> for NotionBlogSitemap {
     fn start(&mut self, name: &[u8]) -> Result<()> {
         match name {
             b"url" => {
@@ -49,9 +50,8 @@ impl XMLHandler<ScrapedEngineeringItems> for OpenAISitemap {
                     match self.current_element.as_str() {
                         "loc" => url.url = self.current_text.clone(),
                         "lastmod" => {
-                            if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&self.current_text)
-                            {
-                                url.updated = Some(dt.to_utc());
+                            if let Ok(dt) = &self.current_text.parse::<DateTime<Utc>>() {
+                                url.updated = Some(dt.clone());
                             }
                         }
                         _ => {}
@@ -70,15 +70,15 @@ impl XMLHandler<ScrapedEngineeringItems> for OpenAISitemap {
     }
 }
 
-pub async fn scrape_openai_sitemap() -> Result<ScrapedEngineeringItems> {
-    match local_storage::find_stored_item(OPENAI_SITEMAP_STORAGE_CONSTANT) {
+pub async fn scrape_notion_blog_sitemap() -> Result<ScrapedEngineeringItems> {
+    match local_storage::find_stored_item(NOTION_BLOG_SITEMAP_STORAGE_CONSTANT) {
         Some(i) => Ok(i),
         None => {
-            let res = request_url_document_text(OPENAI_SITEMAP_URL).await?;
+            let res = request_url_document_text(NOTION_BLOG_SITEMAP_URL).await?;
             let reader = Reader::from_str(&res);
-            let handler = OpenAISitemap::default();
+            let handler = NotionBlogSitemap::default();
             let items = parse_xml_with(reader, handler)?;
-            let storage_key = StorageKey::new(OPENAI_SITEMAP_STORAGE_CONSTANT, None, Some(7));
+            let storage_key = StorageKey::new(NOTION_BLOG_SITEMAP_STORAGE_CONSTANT, None, Some(7));
             local_storage::write_item_to_storage(storage_key, &items);
             Ok(items)
         }
@@ -93,22 +93,29 @@ mod tests {
     fn test_parse_xml() {
         let xml = r#"
         <url>
-        <loc>https://openai.com/index/introducing-chatgpt-atlas/</loc>
-        <lastmod>2025-10-21T21:14:43.217Z</lastmod>
-        </url>
-        <url >
-        <loc>https://openai.com/chatgpt/pricing/</loc>
-        <lastmod>2025-10-21T21:03:39.390Z</lastmod>
-        </url>"#;
+<loc>https://www.notion.com/blog/ai-art-prompts</loc>
+<lastmod>2024-10-06T20:22:23.809Z</lastmod>
+<changefreq>yearly</changefreq>
+<priority>0.4</priority>
+</url>
+<url>
+<loc>https://www.notion.com/blog/its-national-coffee-day-grab-a-cup-and-some-templates</loc>
+<lastmod>2024-09-30T22:58:45.507Z</lastmod>
+<changefreq>yearly</changefreq>
+<priority>0.4</priority>
+</url>
+<url>
+<loc>https://www.notion.com/blog/how-i-learned-to-stop-worrying-and-love-ai</loc>
+<lastmod>2024-09-30T16:53:29.263Z</lastmod>
+<changefreq>yearly</changefreq>
+<priority>0.4</priority>
+</url>"#;
         let reader = Reader::from_str(xml);
-        let handler = OpenAISitemap::default();
+        let handler = NotionBlogSitemap::default();
         let entries = parse_xml_with(reader, handler).expect("Failed to parse xml content");
-        assert_eq!(entries.len(), 2);
+        assert_eq!(entries.len(), 3);
         let first = entries.first().unwrap();
-        assert_eq!(
-            first.url,
-            "https://openai.com/index/introducing-chatgpt-atlas/"
-        );
+        assert_eq!(first.url, "https://www.notion.com/blog/ai-art-prompts");
         assert!(first.updated.is_some());
     }
 }

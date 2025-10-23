@@ -1,3 +1,5 @@
 imports_granularity = "Crate"
 normalize_comments = true
 group_imports = "One"
+reorder_imports = true
+reorder_modules = true

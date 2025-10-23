@@ -1,6 +1,6 @@
 pub mod key;
 
-use crate::key::LocalStorageKey;
+use crate::key::StorageKey;
 use log::{error, trace, warn};
 use std::{
     collections::HashSet,
@@ -8,8 +8,8 @@ use std::{
     path::PathBuf,
 };
 
-pub struct LocalStorage {
-    keys: HashSet<LocalStorageKey>,
+struct LocalStorage {
+    keys: HashSet<StorageKey>,
     storage_loc: PathBuf,
 }
 
@@ -20,12 +20,18 @@ impl LocalStorage {
             let mut keys = HashSet::new();
             for entry in std::fs::read_dir(&loc)? {
                 let entry_path = entry?.path();
-                let local_storage_key = LocalStorageKey::from(entry_path.clone());
-                let inserted = keys.insert(local_storage_key);
-                if !inserted {
-                    // Failed equivalence so we should remove
+                let local_storage_key = StorageKey::from(entry_path.clone());
+                if local_storage_key.is_expired() {
                     std::fs::remove_file(entry_path.clone())?;
-                    warn!("Removed duplicate storage item: {:?}", entry_path);
+                    warn!("Removed expired storage item: {:?}", entry_path);
+                    continue;
+                } else {
+                    let inserted = keys.insert(local_storage_key);
+                    if !inserted {
+                        // Failed equivalence so we should remove
+                        std::fs::remove_file(entry_path.clone())?;
+                        warn!("Removed duplicate storage item: {:?}", entry_path);
+                    }
                 }
             }
             Ok(Self {
@@ -42,13 +48,13 @@ impl LocalStorage {
         }
     }
 
-    pub fn contains(&self, key: &LocalStorageKey) -> bool {
+    pub fn contains(&self, key: &StorageKey) -> bool {
         self.keys.contains(key)
     }
 
     pub fn insert_item<K: AsRef<[u8]>>(
         &mut self,
-        key: &LocalStorageKey,
+        key: &StorageKey,
         item: K,
     ) -> std::io::Result<()> {
         if self.contains(key) {
@@ -71,11 +77,32 @@ impl LocalStorage {
         }
     }
 
-    pub fn get_item(&self, key: &LocalStorageKey) -> std::io::Result<Vec<u8>> {
+    pub fn get_item(&self, key: &StorageKey) -> std::io::Result<Vec<u8>> {
         let get_path = self.storage_loc.clone().join(Into::<PathBuf>::into(key));
         let mut f = std::fs::File::open(get_path)?;
         let mut buf = Vec::new();
         f.read_to_end(&mut buf)?;
         Ok(buf)
+    }
+}
+
+/// Find a stored item by its constant name. Helper function since implementation is always same.
+pub fn find_stored_item<T: serde::de::DeserializeOwned>(constant: &str) -> Option<T> {
+    let storage_key = StorageKey::new(&constant, None, None);
+    let storage = LocalStorage::new().ok()?;
+    let bytes = storage.get_item(&storage_key).ok()?;
+    log::trace!("Using cached item: {:?}", storage_key);
+    serde_json::from_slice::<T>(&bytes).ok()
+}
+
+/// Write an item to storage. Helper function since implementation is always same.
+pub fn write_item_to_storage<T: serde::Serialize>(storage_key: StorageKey, item: &T) -> Option<()> {
+    let mut storage = LocalStorage::new().ok()?;
+    match serde_json::to_vec(item) {
+        Ok(serialized) => storage.insert_item(&storage_key, serialized).ok(),
+        Err(e) => {
+            log::error!("Failed to convert item to array: {:?}", e);
+            return None;
+        }
     }
 }

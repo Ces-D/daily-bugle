@@ -8,8 +8,10 @@ use anyhow::{Result, anyhow, bail};
 use chrono::{DateTime, Datelike};
 use chrono_tz::{America::New_York, Tz};
 use headless_chrome::{Browser, Element, LaunchOptions, Tab, browser::default_executable};
+use local_storage::key::StorageKey;
 use std::{fmt::Display, sync::Arc};
 
+#[derive(Debug, Clone, Copy)]
 pub enum ThingsToDoCycle {
     Today,
     Week,
@@ -156,104 +158,77 @@ fn scrape_article_content(tab: Arc<Tab>) -> Result<Vec<ArticleContent>> {
     Ok(article_contents)
 }
 
+fn timeout_variant_cache_constant(variant: ThingsToDoCycle) -> String {
+    format!("{}-{}", TIMEOUT_STORAGE_PREFIX, &variant.to_string())
+}
+fn timeout_variants_storage_key(
+    variant: ThingsToDoCycle,
+    article_time: DateTime<Tz>,
+) -> StorageKey {
+    let constant = timeout_variant_cache_constant(variant);
+    let expires_in = match variant {
+        ThingsToDoCycle::Today => 1,
+        ThingsToDoCycle::Week => 7,
+        ThingsToDoCycle::Weekend => 3,
+        ThingsToDoCycle::Month => 30,
+    };
+    StorageKey::new(&constant, Some(article_time.to_utc()), Some(expires_in))
+}
+
 pub async fn scrape_things_to_do(variant: ThingsToDoCycle) -> Result<ThingsToDo> {
-    let launch_options = LaunchOptions::default_builder()
-        .idle_browser_timeout(core::time::Duration::from_secs(60))
-        .path(Some(default_executable().map_err(|e| anyhow!(e))?))
-        .build()?;
-    let browser = Browser::new(launch_options)?;
-    let tab = browser.new_tab()?;
-
-    match variant {
-        ThingsToDoCycle::Today => tab.navigate_to(TODAY_EVENTS_URL)?,
-        ThingsToDoCycle::Week => tab.navigate_to(WEEK_EVENTS_URL)?,
-        ThingsToDoCycle::Weekend => tab.navigate_to(WEEKEND_EVENTS_URL)?,
-        ThingsToDoCycle::Month => tab.navigate_to(current_month_events_url())?,
-    };
-
-    let article_time = scrape_article_time(tab.clone())?;
-
-    let cached_todo: Option<ThingsToDo> = match variant {
-        ThingsToDoCycle::Today => find_cached_item(ThingsToDoCycle::Today, article_time),
-        ThingsToDoCycle::Week => find_cached_item(ThingsToDoCycle::Week, article_time),
-        ThingsToDoCycle::Weekend => find_cached_item(ThingsToDoCycle::Weekend, article_time),
-        ThingsToDoCycle::Month => find_cached_item(ThingsToDoCycle::Month, article_time),
-    };
+    let cache_constant = timeout_variant_cache_constant(variant);
+    let cached_todo: Option<ThingsToDo> = local_storage::find_stored_item(&cache_constant);
 
     if cached_todo.is_some() {
         Ok(cached_todo.unwrap())
     } else {
-        log::info!("{} cache not found", variant);
+        let launch_options = LaunchOptions::default_builder()
+            .idle_browser_timeout(core::time::Duration::from_secs(60))
+            .path(Some(default_executable().map_err(|e| anyhow!(e))?))
+            .build()?;
+        let browser = Browser::new(launch_options)?;
+        let tab = browser.new_tab()?;
+
+        match variant {
+            ThingsToDoCycle::Today => tab.navigate_to(TODAY_EVENTS_URL)?,
+            ThingsToDoCycle::Week => tab.navigate_to(WEEK_EVENTS_URL)?,
+            ThingsToDoCycle::Weekend => tab.navigate_to(WEEKEND_EVENTS_URL)?,
+            ThingsToDoCycle::Month => tab.navigate_to(current_month_events_url())?,
+        };
+
+        let article_time = scrape_article_time(tab.clone())?;
         let recent_todo = match variant {
             ThingsToDoCycle::Today => {
                 let article_contents = scrape_article_content(tab.clone())?;
-                let t = ThingsToDo {
+                ThingsToDo {
                     written: article_time.to_rfc2822(),
                     article: article_contents,
-                };
-                write_item_to_cache(ThingsToDoCycle::Today, article_time, &t);
-                t
+                }
             }
             ThingsToDoCycle::Week => {
                 let article_contents = scrape_article_content(tab.clone())?;
-                let t = ThingsToDo {
+                ThingsToDo {
                     written: article_time.to_rfc2822(),
                     article: article_contents,
-                };
-                write_item_to_cache(ThingsToDoCycle::Week, article_time, &t);
-                t
+                }
             }
             ThingsToDoCycle::Weekend => {
                 let article_contents = scrape_article_content(tab.clone())?;
-                let t = ThingsToDo {
+                ThingsToDo {
                     written: article_time.to_rfc2822(),
                     article: article_contents,
-                };
-                write_item_to_cache(ThingsToDoCycle::Weekend, article_time, &t);
-                t
+                }
             }
             ThingsToDoCycle::Month => {
                 let article_contents = scrape_article_content(tab.clone())?;
-                let t = ThingsToDo {
+                ThingsToDo {
                     written: article_time.to_rfc2822(),
                     article: article_contents,
-                };
-                write_item_to_cache(ThingsToDoCycle::Month, article_time, &t);
-                t
+                }
             }
         };
+        let storage_key = timeout_variants_storage_key(variant, article_time);
+        local_storage::write_item_to_storage(storage_key, &recent_todo);
         Ok(recent_todo)
-    }
-}
-
-fn timeout_variant_cache_constant(variant: ThingsToDoCycle) -> String {
-    format!("{}-{}", TIMEOUT_STORAGE_PREFIX, &variant.to_string())
-}
-
-fn find_cached_item(variant: ThingsToDoCycle, article_time: DateTime<Tz>) -> Option<ThingsToDo> {
-    let constant = timeout_variant_cache_constant(variant);
-    let storage_key =
-        local_storage::key::LocalStorageKey::new(&constant).push_datetime(article_time);
-    let storage = local_storage::LocalStorage::new().ok()?;
-    let bytes = storage.get_item(&storage_key).ok()?;
-    log::trace!("Using cached item: {:?}", storage_key);
-    serde_json::from_slice::<ThingsToDo>(&bytes).ok()
-}
-
-fn write_item_to_cache(
-    variant: ThingsToDoCycle,
-    article_time: DateTime<Tz>,
-    item: &ThingsToDo,
-) -> Option<()> {
-    let constant = timeout_variant_cache_constant(variant);
-    let storage_key =
-        local_storage::key::LocalStorageKey::new(&constant).push_datetime(article_time);
-    let mut storage = local_storage::LocalStorage::new().ok()?;
-    match serde_json::to_vec(item) {
-        Ok(serialized) => storage.insert_item(&storage_key, serialized).ok(),
-        Err(e) => {
-            log::error!("Failed to convert item to array: {:?}", e);
-            return None;
-        }
     }
 }

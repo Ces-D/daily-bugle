@@ -40,3 +40,13 @@ where
     }
     Ok(handler.items())
 }
+
+pub async fn request_url_document_text(url: &str) -> Result<String> {
+    let res = reqwest::get(url).await?;
+    if res.status() != reqwest::StatusCode::OK {
+        bail!("Failed request to {} - {}", url, res.status());
+    } else {
+        let xml = res.text().await?;
+        Ok(xml)
+    }
+}

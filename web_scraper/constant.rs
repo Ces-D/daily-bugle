@@ -30,39 +30,56 @@ pub const NOVEMBER_EVENTS_URL: &str =
     "https://www.timeout.com/newyork/events-calendar/november-events-calendar";
 pub const DECEMBER_EVENTS_URL: &str =
     "https://www.timeout.com/newyork/events-calendar/december-events-calendar";
-
 pub const TIMEOUT_STORAGE_PREFIX: &str = "time-out-nyc";
 
 // ~~~~~~~~~~~~~~~~~~~~ Tech ~~~~~~~~~~~~~~~~~~~~
 // ARMIN RONACHER
 pub const ARMIN_RONACHER_ATOM_FEED_URL: &str = "https://lucumr.pocoo.org/feed.atom";
+pub const ARMIN_RONACHER_STORAGE_CONSTANT: &str = "armin_ronacher";
 
 // HACKER NEWS
 pub const HACKER_NEWS_NEWS_URL: &str = "https://news.ycombinator.com/news"; //  Pagination via `?p={}`
+pub const HACKER_NEWS_NEWS_STORAGE_CONSTANT: &str = "hacker_news_news";
 pub const HACKER_NEWS_JOBS_URL: &str = "https://news.ycombinator.com/jobs";
+pub const HACKER_NEWS_JOBS_STORAGE_CONSTANT: &str = "hacker_news_jobs";
 
 // MDN
 pub const MDN_SITEMAP_URL: &str = "https://developer.mozilla.org/sitemaps/en-us/sitemap.xml.gz";
+pub const MDN_SITEMAP_STORAGE_CONSTANT: &str = "mdn_sitemap";
 
 // OpenAI
 pub const OPENAI_SITEMAP_URL: &str = "https://openai.com/sitemap.xml/page/";
+pub const OPENAI_SITEMAP_STORAGE_CONSTANT: &str = "openai_sitemap";
 
 // GOOGLE Developer Blogs
 pub const GOOGLE_DEVELOPER_BLOGS_SITEMAP_URL: &str =
     "https://developers.googleblog.com/sitemap.xml";
-
-// STRIPE Blog Sitemap
-// PSA it seems like the sitemaps are split into partitions eventually expect partition-6
-pub const STRIPE_ENGINEERING_SITEMAP_URL: &str = "https://stripe.com/sitemap/partition-5.xml";
+pub const GOOGLE_DEVELOPER_BLOGS_STORAGE_CONSTANT: &str = "google_developer_blogs";
 
 // NOTION
-pub const NOTION_TECH_BLOG_URL: &str = "https://www.notion.com/blog/topic/tech";
+// pub const NOTION_TECH_BLOG_URL: &str = "https://www.notion.com/blog/topic/tech";
 pub const NOTION_BLOG_SITEMAP_URL: &str = "https://www.notion.com/blog/sitemap.xml";
+pub const NOTION_BLOG_SITEMAP_STORAGE_CONSTANT: &str = "notion_blog";
 
 // FIGMA Engineering Blog
-pub const FIGMA_ENGINEERING_BLOG_URL: &str = "https://www.figma.com/blog/engineering"; // Pagination via `?page={}`
+pub const FIGMA_ENGINEERING_BLOG_URL: &str = "https://www.figma.com/blog/engineering";
+pub const FIGMA_ENGINEERING_BLOG_STORAGE_CONSTANT: &str = "figma_blog";
 
 // UBER Engineering Blog
 pub const UBER_ENGINEERING_BLOG_URL: &str = "https://www.uber.com/blog/new-york/engineering/page/"; // Pagination just add 1 || 2
+pub const UBER_ENGINEERING_BLOG_STORAGE_CONSTANT: &str = "uber_blog";
 
+// AWS Engineering Blog
 pub const AWS_ENGINEERING_BLOG_SITEMAP_URL: &str = "https://aws.amazon.com/sitemaps/sitemap_blogs/";
+pub const AWS_ENGINEERING_BLOG_STORAGE_CONSTANT: &str = "aws_blog";
+
+// Imperva Learn Engineering
+pub const IMPERVA_LEARN_APPLICATION_SECURITY_SITEMAP_URL: &str =
+    "https://www.imperva.com/learn/application_security-sitemap.xml";
+pub const IMPERVA_LEARN_DATA_SECURITY_SITEMAP_URL: &str =
+    "https://www.imperva.com/learn/data_security-sitemap.xml";
+pub const IMPERVA_LEARN_DDOS_SITEMAP_URL: &str = "https://www.imperva.com/learn/ddos-sitemap.xml";
+pub const IMPERVA_LEARN_AVAILABILITY_SITEMAP_URL: &str =
+    "https://www.imperva.com/learn/availability-sitemap.xml";
+pub const IMPERVA_LEARN_PERFORMANCE_SITEMAP_URL: &str =
+    "https://www.imperva.com/learn/performance-sitemap.xml";
