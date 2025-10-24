@@ -1,53 +1,17 @@
+mod command;
 mod logger;
 
 use anyhow::{Context, bail};
-use clap::{Parser, ValueEnum};
-use log::trace;
+use clap::Parser;
+use command::Command;
+use rand::Rng;
 use serde_json::json;
-use web_scraper::time_out::{ThingsToDoCycle, scrape_things_to_do};
-
-#[derive(Debug, Clone, Copy, ValueEnum)]
-enum TimeOutTimePeriod {
-    Today,
-    Week,
-    Weekend,
-    Month,
-}
-
-#[derive(Debug, Clone, Copy, ValueEnum, Default)]
-enum HackerNewsLink {
-    #[default]
-    News,
-    Jobs,
-}
-
-#[derive(Debug, clap::Subcommand)]
-enum Command {
-    #[clap(about = "See the weather in your area")]
-    Weather { postal_code: String, complete: bool },
-    #[clap(about = "Get nyc events for specific time periods")]
-    TimeOut { events: TimeOutTimePeriod },
-    #[clap(about = "Get blogs from Armin Ronacher")]
-    Lucumr,
-    #[clap(about = "Get items from the MDN site")]
-    Mdn,
-    #[clap(about = "Get news or job items from the HackerNews site")]
-    HackerNews { page: HackerNewsLink },
-    #[clap(about = "Set or get countdowns ")]
-    TestNode,
-}
-
-#[derive(Debug, clap::Parser)]
-#[clap(author, version, bin_name = "daily-bugle", subcommand_required = true)]
-struct App {
-    #[clap(subcommand)]
-    command: Command,
-}
+use web_scraper::{ScrapedEngineeringItems, lucumr};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     logger::init_logging();
-    let app = App::parse();
+    let app = command::App::parse();
     let bugle_config = config::read_config_file()?;
 
     match app.command {
@@ -76,46 +40,66 @@ async fn main() -> anyhow::Result<()> {
                 bail!("Config.weather must be populated")
             }
         }
-        Command::TimeOut { events } => {
-            let things_to_do = match events {
-                TimeOutTimePeriod::Today => scrape_things_to_do(ThingsToDoCycle::Today).await?,
-                TimeOutTimePeriod::Week => scrape_things_to_do(ThingsToDoCycle::Week).await?,
-                TimeOutTimePeriod::Weekend => scrape_things_to_do(ThingsToDoCycle::Weekend).await?,
-                TimeOutTimePeriod::Month => scrape_things_to_do(ThingsToDoCycle::Month).await?,
-            };
-            trace!("Timeout request complete");
-            let writer = std::io::stdout();
-            serde_json::to_writer_pretty(writer, &things_to_do)?;
-            Ok(())
-        }
-        Command::Lucumr => {
-            let entries = web_scraper::lucumr::scrape_lucumr_atom_feed().await?;
-            trace!("Armin Ronacher blog Lucumr request complete");
-            let writer = std::io::stdout();
-            serde_json::to_writer_pretty(writer, &entries)?;
-            Ok(())
-        }
-        Command::Mdn => {
-            let entries = web_scraper::mdn::scrape_mdn_sitemap().await?;
-            trace!("MDN request complete");
-            let writer = std::io::stdout();
-            serde_json::to_writer_pretty(writer, &entries)?;
-            Ok(())
-        }
-        Command::HackerNews { page } => {
-            let entries = match page {
-                HackerNewsLink::News => {
-                    web_scraper::hackernews::scrape_hackernews_news(None).await?
+
+        Command::NYCEvent { period } => todo!(),
+
+        Command::TechnicalArticle { sources } => {
+            let mut entries: ScrapedEngineeringItems = vec![];
+            for source in sources {
+                match source {
+                    command::TechnicalArticleSource::Aws => {
+                        let aws = web_scraper::aws::scrape_aws_engineering_sitemap().await?;
+                        entries.extend(aws);
+                    }
+                    command::TechnicalArticleSource::Figma => {
+                        let figma = web_scraper::figma::scrape_figma_engineering_blog().await?;
+                        entries.extend(figma);
+                    }
+                    command::TechnicalArticleSource::Google => {
+                        let google =
+                            web_scraper::google::scrape_google_developer_blogs_sitemap().await?;
+                        entries.extend(google);
+                    }
+                    command::TechnicalArticleSource::HackernewsNews => {
+                        let hackernews_news =
+                            web_scraper::hackernews::scrape_hackernews_news(None).await?;
+                        entries.extend(hackernews_news);
+                    }
+                    command::TechnicalArticleSource::HackernewsJobs => {
+                        let hackernews_jobs =
+                            web_scraper::hackernews::scrape_hackernews_jobs(None).await?;
+                        entries.extend(hackernews_jobs);
+                    }
+                    command::TechnicalArticleSource::ArminRonacher => {
+                        let lucumr = web_scraper::lucumr::scrape_lucumr_atom_feed().await?;
+                        entries.extend(lucumr);
+                    }
+                    command::TechnicalArticleSource::Mdn => {
+                        let mdn = web_scraper::mdn::scrape_mdn_sitemap().await?;
+                        entries.extend(mdn);
+                    }
+                    command::TechnicalArticleSource::Notion => {
+                        let notion = web_scraper::notion::scrape_notion_blog_sitemap().await?;
+                        entries.extend(notion);
+                    }
+                    command::TechnicalArticleSource::Openai => {
+                        let openai = web_scraper::openai::scrape_openai_sitemap().await?;
+                        entries.extend(openai);
+                    }
+                    command::TechnicalArticleSource::Uber => {
+                        let uber = web_scraper::uber::scrape_uber_engineering_blog().await?;
+                        entries.extend(uber);
+                    }
                 }
-                HackerNewsLink::Jobs => {
-                    web_scraper::hackernews::scrape_hackernews_jobs(None).await?
-                }
-            };
-            trace!("Hackernews request complete");
-            let writer = std::io::stdout();
-            serde_json::to_writer_pretty(writer, &entries)?;
+            }
+            let random_index = rand::random_range(..entries.len());
+            let random_entry = entries.get(random_index).unwrap();
+            let out = serde_json::to_string_pretty(&random_entry)
+                .with_context(|| "Failed to convert weather response")?;
+            println!("{}", out);
             Ok(())
         }
+
         Command::TestNode => {
             let o = std::process::Command::new("node")
                 .arg("google/dist/init.js")

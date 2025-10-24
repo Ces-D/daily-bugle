@@ -10,6 +10,7 @@ clap.workspace = true
 env_logger.workspace = true
 log.workspace = true
 rrule.workspace = true
+rand.workspace = true
 tokio.workspace = true
 serde_json.workspace = true
 

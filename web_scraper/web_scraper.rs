@@ -20,17 +20,4 @@ pub struct ScrapedEngineeringItem {
     pub updated: Option<chrono::DateTime<chrono::Utc>>,
 }
 
-pub enum ScrapedSites {
-    Aws,
-    Figma,
-    Google,
-    Hackernews,
-    ArminRonacher,
-    Mdn,
-    Notion,
-    Openai,
-    Timeout,
-    Uber,
-}
-
 pub type ScrapedEngineeringItems = Vec<ScrapedEngineeringItem>;

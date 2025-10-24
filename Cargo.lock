@@ -236,6 +236,7 @@ dependencies = [
  "config",
  "env_logger",
  "log",
+ "rand 0.9.2",
  "rrule",
  "serde_json",
  "tokio",
@@ -1093,6 +1094,7 @@ dependencies = [
  "log",
  "serde",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]
