@@ -65,7 +65,7 @@ impl XMLHandler<ScrapedEngineeringItems> for AWSEngineeringSitemap {
 }
 
 pub async fn scrape_aws_engineering_sitemap() -> Result<ScrapedEngineeringItems> {
-    match local_storage::find_stored_item(AWS_ENGINEERING_BLOG_STORAGE_CONSTANT) {
+    match local_storage::find_stored_item(AWS_ENGINEERING_BLOG_STORAGE_CONSTANT).await {
         Some(i) => Ok(i),
         None => {
             let res = request_url_document_text(AWS_ENGINEERING_BLOG_SITEMAP_URL).await?;
@@ -73,7 +73,7 @@ pub async fn scrape_aws_engineering_sitemap() -> Result<ScrapedEngineeringItems>
             let handler = AWSEngineeringSitemap::default();
             let items = parse_xml_with(reader, handler)?;
             let storage_key = StorageKey::new(AWS_ENGINEERING_BLOG_STORAGE_CONSTANT, None, Some(7));
-            local_storage::write_item_to_storage(storage_key, &items);
+            local_storage::write_item_to_storage(storage_key, &items).await;
             Ok(items)
         }
     }

@@ -72,7 +72,7 @@ impl XMLHandler<ScrapedEngineeringItems> for GoogleDevelopersSitemap {
 }
 
 pub async fn scrape_google_developer_blogs_sitemap() -> Result<ScrapedEngineeringItems> {
-    match local_storage::find_stored_item(GOOGLE_DEVELOPER_BLOGS_STORAGE_CONSTANT) {
+    match local_storage::find_stored_item(GOOGLE_DEVELOPER_BLOGS_STORAGE_CONSTANT).await {
         Some(i) => Ok(i),
         None => {
             let res = request_url_document_text(GOOGLE_DEVELOPER_BLOGS_SITEMAP_URL).await?;
@@ -81,7 +81,7 @@ pub async fn scrape_google_developer_blogs_sitemap() -> Result<ScrapedEngineerin
             let items = parse_xml_with(reader, handler)?;
             let storage_key =
                 StorageKey::new(GOOGLE_DEVELOPER_BLOGS_STORAGE_CONSTANT, None, Some(10));
-            local_storage::write_item_to_storage(storage_key, &items);
+            local_storage::write_item_to_storage(storage_key, &items).await;
             Ok(items)
         }
     }

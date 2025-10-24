@@ -91,7 +91,7 @@ impl XMLHandler<ScrapedEngineeringItems> for MDNSitemap {
 }
 
 pub async fn scrape_mdn_sitemap() -> Result<ScrapedEngineeringItems> {
-    match local_storage::find_stored_item(MDN_SITEMAP_STORAGE_CONSTANT) {
+    match local_storage::find_stored_item(MDN_SITEMAP_STORAGE_CONSTANT).await {
         Some(i) => Ok(i),
         None => {
             let res = request_mdn_sitemap().await?;
@@ -99,7 +99,7 @@ pub async fn scrape_mdn_sitemap() -> Result<ScrapedEngineeringItems> {
             let handler = MDNSitemap::default();
             let items = parse_xml_with(reader, handler)?;
             let storage_key = StorageKey::new(MDN_SITEMAP_STORAGE_CONSTANT, None, Some(10));
-            local_storage::write_item_to_storage(storage_key, &items);
+            local_storage::write_item_to_storage(storage_key, &items).await;
             Ok(items)
         }
     }

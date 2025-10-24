@@ -25,7 +25,7 @@ fn parse_uber_engineering_page(html: &str) -> Result<ScrapedEngineeringItems> {
 }
 
 pub async fn scrape_uber_engineering_blog() -> Result<ScrapedEngineeringItems> {
-    match local_storage::find_stored_item(UBER_ENGINEERING_BLOG_STORAGE_CONSTANT) {
+    match local_storage::find_stored_item(UBER_ENGINEERING_BLOG_STORAGE_CONSTANT).await {
         Some(item) => Ok(item),
         None => {
             let mut entries: ScrapedEngineeringItems = Vec::new();
@@ -37,7 +37,7 @@ pub async fn scrape_uber_engineering_blog() -> Result<ScrapedEngineeringItems> {
                 entries.extend(parsed);
             }
             let storage_key = StorageKey::new(UBER_ENGINEERING_BLOG_STORAGE_CONSTANT, None, None);
-            local_storage::write_item_to_storage(storage_key, &entries);
+            local_storage::write_item_to_storage(storage_key, &entries).await;
             Ok(entries)
         }
     }

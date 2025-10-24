@@ -71,7 +71,7 @@ impl XMLHandler<ScrapedEngineeringItems> for OpenAISitemap {
 }
 
 pub async fn scrape_openai_sitemap() -> Result<ScrapedEngineeringItems> {
-    match local_storage::find_stored_item(OPENAI_SITEMAP_STORAGE_CONSTANT) {
+    match local_storage::find_stored_item(OPENAI_SITEMAP_STORAGE_CONSTANT).await {
         Some(i) => Ok(i),
         None => {
             let res = request_url_document_text(OPENAI_SITEMAP_URL).await?;
@@ -79,7 +79,7 @@ pub async fn scrape_openai_sitemap() -> Result<ScrapedEngineeringItems> {
             let handler = OpenAISitemap::default();
             let items = parse_xml_with(reader, handler)?;
             let storage_key = StorageKey::new(OPENAI_SITEMAP_STORAGE_CONSTANT, None, Some(7));
-            local_storage::write_item_to_storage(storage_key, &items);
+            local_storage::write_item_to_storage(storage_key, &items).await;
             Ok(items)
         }
     }

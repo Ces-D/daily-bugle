@@ -4,9 +4,8 @@ mod logger;
 use anyhow::{Context, bail};
 use clap::Parser;
 use command::Command;
-use rand::Rng;
 use serde_json::json;
-use web_scraper::{ScrapedEngineeringItems, lucumr};
+use web_scraper::ScrapedEngineeringItems;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

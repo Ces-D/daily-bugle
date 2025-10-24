@@ -28,7 +28,7 @@ fn create_url(url: &str, page: Page) -> String {
 }
 
 pub async fn scrape_hackernews_news(page: Option<Page>) -> Result<ScrapedEngineeringItems> {
-    match local_storage::find_stored_item(HACKER_NEWS_NEWS_STORAGE_CONSTANT) {
+    match local_storage::find_stored_item(HACKER_NEWS_NEWS_STORAGE_CONSTANT).await {
         Some(item) => Ok(item),
         None => {
             let res = request_url_document_text(&create_url(
@@ -50,14 +50,14 @@ pub async fn scrape_hackernews_news(page: Option<Page>) -> Result<ScrapedEnginee
                 });
             }
             let storage_key = StorageKey::new(HACKER_NEWS_NEWS_STORAGE_CONSTANT, None, Some(1));
-            local_storage::write_item_to_storage(storage_key, &entries);
+            local_storage::write_item_to_storage(storage_key, &entries).await;
             Ok(entries)
         }
     }
 }
 
 pub async fn scrape_hackernews_jobs(page: Option<Page>) -> Result<ScrapedEngineeringItems> {
-    match local_storage::find_stored_item(HACKER_NEWS_JOBS_STORAGE_CONSTANT) {
+    match local_storage::find_stored_item(HACKER_NEWS_JOBS_STORAGE_CONSTANT).await {
         Some(item) => Ok(item),
         None => {
             let res = request_url_document_text(&create_url(
@@ -79,7 +79,7 @@ pub async fn scrape_hackernews_jobs(page: Option<Page>) -> Result<ScrapedEnginee
                 });
             }
             let storage_key = StorageKey::new(HACKER_NEWS_JOBS_STORAGE_CONSTANT, None, Some(1));
-            local_storage::write_item_to_storage(storage_key, &entries);
+            local_storage::write_item_to_storage(storage_key, &entries).await;
             Ok(entries)
         }
     }

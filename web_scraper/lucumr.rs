@@ -79,7 +79,7 @@ impl XMLHandler<ScrapedEngineeringItems> for AtomFeed {
 }
 
 pub async fn scrape_lucumr_atom_feed() -> Result<ScrapedEngineeringItems> {
-    match local_storage::find_stored_item(ARMIN_RONACHER_STORAGE_CONSTANT) {
+    match local_storage::find_stored_item(ARMIN_RONACHER_STORAGE_CONSTANT).await {
         Some(items) => Ok(items),
         None => {
             let xml = request_url_document_text(ARMIN_RONACHER_ATOM_FEED_URL).await?;
@@ -87,7 +87,7 @@ pub async fn scrape_lucumr_atom_feed() -> Result<ScrapedEngineeringItems> {
             let handler = AtomFeed::default();
             let items = parse_xml_with(reader, handler)?;
             let storage_key = StorageKey::new(ARMIN_RONACHER_STORAGE_CONSTANT, None, Some(7));
-            local_storage::write_item_to_storage(storage_key, &items);
+            local_storage::write_item_to_storage(storage_key, &items).await;
             Ok(items)
         }
     }

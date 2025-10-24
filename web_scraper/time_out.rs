@@ -177,7 +177,7 @@ fn timeout_variants_storage_key(
 
 pub async fn scrape_things_to_do(variant: ThingsToDoCycle) -> Result<ThingsToDo> {
     let cache_constant = timeout_variant_cache_constant(variant);
-    let cached_todo: Option<ThingsToDo> = local_storage::find_stored_item(&cache_constant);
+    let cached_todo: Option<ThingsToDo> = local_storage::find_stored_item(&cache_constant).await;
 
     if cached_todo.is_some() {
         Ok(cached_todo.unwrap())
@@ -228,7 +228,7 @@ pub async fn scrape_things_to_do(variant: ThingsToDoCycle) -> Result<ThingsToDo>
             }
         };
         let storage_key = timeout_variants_storage_key(variant, article_time);
-        local_storage::write_item_to_storage(storage_key, &recent_todo);
+        local_storage::write_item_to_storage(storage_key, &recent_todo).await;
         Ok(recent_todo)
     }
 }
