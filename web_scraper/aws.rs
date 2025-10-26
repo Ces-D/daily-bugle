@@ -68,7 +68,7 @@ pub async fn scrape_aws_engineering_sitemap() -> Result<ScrapedEngineeringItems>
     match local_storage::find_stored_item(AWS_ENGINEERING_BLOG_STORAGE_CONSTANT).await {
         Some(i) => Ok(i),
         None => {
-            let res = request_url_document_text(AWS_ENGINEERING_BLOG_SITEMAP_URL).await?;
+            let res = request_url_document_text(AWS_ENGINEERING_BLOG_SITEMAP_URL, None).await?;
             let reader = Reader::from_str(&res);
             let handler = AWSEngineeringSitemap::default();
             let items = parse_xml_with(reader, handler)?;

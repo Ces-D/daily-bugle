@@ -82,7 +82,7 @@ pub async fn scrape_lucumr_atom_feed() -> Result<ScrapedEngineeringItems> {
     match local_storage::find_stored_item(ARMIN_RONACHER_STORAGE_CONSTANT).await {
         Some(items) => Ok(items),
         None => {
-            let xml = request_url_document_text(ARMIN_RONACHER_ATOM_FEED_URL).await?;
+            let xml = request_url_document_text(ARMIN_RONACHER_ATOM_FEED_URL, None).await?;
             let reader = Reader::from_str(&xml);
             let handler = AtomFeed::default();
             let items = parse_xml_with(reader, handler)?;

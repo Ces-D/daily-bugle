@@ -1,30 +1,22 @@
 use crate::{
     ScrapedEngineeringItem, ScrapedEngineeringItems,
     constant::{MDN_SITEMAP_STORAGE_CONSTANT, MDN_SITEMAP_URL},
-    xml::{XMLHandler, naive_date_to_utc, parse_xml_with},
+    xml::{XMLHandler, naive_date_to_utc, parse_xml_with, request_url_document_text},
 };
-use anyhow::{Context, Result, bail};
+use anyhow::Result;
 use chrono::NaiveDate;
 use local_storage::key::StorageKey;
 use quick_xml::Reader;
-use reqwest::StatusCode;
-use std::io::Read;
+use reqwest::header::{ACCEPT_ENCODING, HeaderMap, HeaderValue};
 
 async fn request_mdn_sitemap() -> Result<String> {
-    let res = reqwest::get(MDN_SITEMAP_URL).await?;
-    if res.status() != StatusCode::OK {
-        bail!("Failed request to {} - {}", MDN_SITEMAP_URL, res.status());
-    } else {
-        let bytes = res
-            .bytes()
-            .await
-            .with_context(|| "Failed to decode response body")?;
-        // Decompress using flate2
-        let mut decoder = flate2::read::GzDecoder::new(&bytes[..]);
-        let mut xml = String::new();
-        decoder.read_to_string(&mut xml)?;
-        Ok(xml)
-    }
+    let mut default_header = HeaderMap::new();
+    default_header.insert(
+        ACCEPT_ENCODING,
+        HeaderValue::from_str("gzip, deflate").unwrap(),
+    );
+    let res = request_url_document_text(MDN_SITEMAP_URL, Some(default_header)).await?;
+    Ok(res)
 }
 
 #[derive(Default)]

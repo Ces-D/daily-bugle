@@ -1,7 +1,10 @@
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use chrono::{DateTime, NaiveDate, NaiveTime, TimeZone, Utc};
 use chrono_tz::America::New_York;
+use log::info;
 use quick_xml::{Reader, events::Event};
+use reqwest::header;
+use std::io::Read;
 
 pub fn naive_date_to_utc(date: NaiveDate) -> DateTime<Utc> {
     let naive_dt = date.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap());
@@ -41,12 +44,38 @@ where
     Ok(handler.items())
 }
 
-pub async fn request_url_document_text(url: &str) -> Result<String> {
-    let res = reqwest::get(url).await?;
+pub async fn request_url_document_text(
+    url: &str,
+    headers: Option<header::HeaderMap>,
+) -> Result<String> {
+    info!("Requesting url: {}", url);
+    let headers = headers.unwrap_or_default();
+    let accepted_encoding = headers.get(header::ACCEPT_ENCODING);
+    let builder = reqwest::ClientBuilder::new().default_headers(headers.clone());
+    let client = builder
+        .build()
+        .with_context(|| "Unable to create request client")?;
+    let res = client.get(url).send().await?;
     if res.status() != reqwest::StatusCode::OK {
         bail!("Failed request to {} - {}", url, res.status());
     } else {
-        let xml = res.text().await?;
-        Ok(xml)
+        if let Some(encoding) = accepted_encoding {
+            match encoding.to_str().unwrap_or_default() {
+                "gzip, deflate" => {
+                    let bytes = res
+                        .bytes()
+                        .await
+                        .with_context(|| "Failed to decode response body")?;
+                    let mut decoder = flate2::read::GzDecoder::new(&bytes[..]);
+                    let mut xml = String::new();
+                    decoder.read_to_string(&mut xml)?;
+                    Ok(xml)
+                }
+                _ => bail!("Unsupported encoding: {:?}", encoding),
+            }
+        } else {
+            let xml = res.text().await?;
+            Ok(xml)
+        }
     }
 }

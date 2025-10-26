@@ -31,10 +31,10 @@ pub async fn scrape_hackernews_news(page: Option<Page>) -> Result<ScrapedEnginee
     match local_storage::find_stored_item(HACKER_NEWS_NEWS_STORAGE_CONSTANT).await {
         Some(item) => Ok(item),
         None => {
-            let res = request_url_document_text(&create_url(
-                HACKER_NEWS_NEWS_URL,
-                page.unwrap_or_default(),
-            ))
+            let res = request_url_document_text(
+                &create_url(HACKER_NEWS_NEWS_URL, page.unwrap_or_default()),
+                None,
+            )
             .await?;
             let html = scraper::Html::parse_document(&res);
             let title_selector =
@@ -60,10 +60,10 @@ pub async fn scrape_hackernews_jobs(page: Option<Page>) -> Result<ScrapedEnginee
     match local_storage::find_stored_item(HACKER_NEWS_JOBS_STORAGE_CONSTANT).await {
         Some(item) => Ok(item),
         None => {
-            let res = request_url_document_text(&create_url(
-                HACKER_NEWS_JOBS_URL,
-                page.unwrap_or_default(),
-            ))
+            let res = request_url_document_text(
+                &create_url(HACKER_NEWS_JOBS_URL, page.unwrap_or_default()),
+                None,
+            )
             .await?;
             let html = scraper::Html::parse_document(&res);
             let title_selector =

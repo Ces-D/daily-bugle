@@ -1,7 +1,7 @@
 mod command;
 mod logger;
 
-use anyhow::{Context, bail};
+use anyhow::{Context, Ok, bail};
 use clap::Parser;
 use command::Command;
 use serde_json::json;
@@ -24,7 +24,7 @@ async fn main() -> anyhow::Result<()> {
                 if complete {
                     let out = serde_json::to_string_pretty(&res)
                         .with_context(|| "Failed to convert weather response")?;
-                    println!("{}", out)
+                    serde_json::to_writer_pretty(std::io::stdout(), &out)?;
                 } else {
                     let out = json!({
                         "location": &res.location.name,
@@ -32,7 +32,7 @@ async fn main() -> anyhow::Result<()> {
                         "temperature": &res.data.values.temperature,
                         "feels_like": &res.data.values.temperature_apparent
                     });
-                    println!("{}", out)
+                    serde_json::to_writer_pretty(std::io::stdout(), &out)?;
                 }
                 Ok(())
             } else {
@@ -40,7 +40,36 @@ async fn main() -> anyhow::Result<()> {
             }
         }
 
-        Command::NYCEvent { period } => todo!(),
+        Command::NYCEvent { period } => {
+            let out = match period {
+                command::TimeOutTimePeriod::Today => {
+                    web_scraper::time_out::scrape_things_to_do(
+                        web_scraper::time_out::ThingsToDoCycle::Today,
+                    )
+                    .await?
+                }
+                command::TimeOutTimePeriod::Week => {
+                    web_scraper::time_out::scrape_things_to_do(
+                        web_scraper::time_out::ThingsToDoCycle::Week,
+                    )
+                    .await?
+                }
+                command::TimeOutTimePeriod::Weekend => {
+                    web_scraper::time_out::scrape_things_to_do(
+                        web_scraper::time_out::ThingsToDoCycle::Weekend,
+                    )
+                    .await?
+                }
+                command::TimeOutTimePeriod::Month => {
+                    web_scraper::time_out::scrape_things_to_do(
+                        web_scraper::time_out::ThingsToDoCycle::Month,
+                    )
+                    .await?
+                }
+            };
+            serde_json::to_writer_pretty(std::io::stdout(), &out)?;
+            Ok(())
+        }
 
         Command::TechnicalArticle { sources } => {
             let mut entries: ScrapedEngineeringItems = vec![];
@@ -93,9 +122,7 @@ async fn main() -> anyhow::Result<()> {
             }
             let random_index = rand::random_range(..entries.len());
             let random_entry = entries.get(random_index).unwrap();
-            let out = serde_json::to_string_pretty(&random_entry)
-                .with_context(|| "Failed to convert weather response")?;
-            println!("{}", out);
+            serde_json::to_writer_pretty(&std::io::stdout(), &random_entry)?;
             Ok(())
         }
 

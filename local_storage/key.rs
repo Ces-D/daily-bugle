@@ -31,6 +31,7 @@ impl StorageKey {
     }
 }
 
+
 /// Implement PartialEq to define custom equality logic.
 /// Two keys are equal if their `constant` fields are equal.
 impl PartialEq for StorageKey {
@@ -53,22 +54,23 @@ impl std::hash::Hash for StorageKey {
 
 impl From<PathBuf> for StorageKey {
     fn from(value: PathBuf) -> Self {
-        let s: Vec<&str> = value
+        match value
             .file_stem()
             .unwrap()
             .to_str()
             .unwrap()
-            .split("__")
-            .collect();
-        if s.len() != 3 {
-            panic!("The length pathbuf is not written as expected")
-        }
-        let constant = s.first().unwrap();
-        let expired = s.last().unwrap();
-        let naive = NaiveDateTime::parse_from_str(expired, "%Y%m%d%H%M%S").unwrap();
-        Self {
-            constant: constant.to_string(),
-            expires_on: DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc),
+            .split_once("__")
+        {
+            Some((constant, expired)) => {
+                let naive = NaiveDateTime::parse_from_str(expired, "%Y%m%d%H%M%S").unwrap();
+                Self {
+                    constant: constant.to_string(),
+                    expires_on: DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc),
+                }
+            }
+            None => {
+                panic!("The length pathbuf is not written as expected")
+            }
         }
     }
 }

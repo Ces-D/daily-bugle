@@ -66,6 +66,7 @@ pub const FIGMA_ENGINEERING_BLOG_URL: &str = "https://www.figma.com/blog/enginee
 pub const FIGMA_ENGINEERING_BLOG_STORAGE_CONSTANT: &str = "figma_blog";
 
 // UBER Engineering Blog
+pub const UBER_ROOT_URL: &str = "https://www.uber.com";
 pub const UBER_ENGINEERING_BLOG_URL: &str = "https://www.uber.com/blog/new-york/engineering/page/"; // Pagination just add 1 || 2
 pub const UBER_ENGINEERING_BLOG_STORAGE_CONSTANT: &str = "uber_blog";
 

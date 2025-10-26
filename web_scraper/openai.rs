@@ -74,7 +74,7 @@ pub async fn scrape_openai_sitemap() -> Result<ScrapedEngineeringItems> {
     match local_storage::find_stored_item(OPENAI_SITEMAP_STORAGE_CONSTANT).await {
         Some(i) => Ok(i),
         None => {
-            let res = request_url_document_text(OPENAI_SITEMAP_URL).await?;
+            let res = request_url_document_text(OPENAI_SITEMAP_URL, None).await?;
             let reader = Reader::from_str(&res);
             let handler = OpenAISitemap::default();
             let items = parse_xml_with(reader, handler)?;

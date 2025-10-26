@@ -5,10 +5,11 @@ use crate::constant::{
     TODAY_EVENTS_URL, WEEK_EVENTS_URL, WEEKEND_EVENTS_URL,
 };
 use anyhow::{Result, anyhow, bail};
-use chrono::{DateTime, Datelike};
+use chrono::{DateTime, Datelike, Duration, NaiveDate, Utc, Weekday};
 use chrono_tz::{America::New_York, Tz};
 use headless_chrome::{Browser, Element, LaunchOptions, Tab, browser::default_executable};
 use local_storage::key::StorageKey;
+use log::trace;
 use std::{fmt::Display, sync::Arc};
 
 #[derive(Debug, Clone, Copy)]
@@ -74,7 +75,7 @@ fn scrape_article_time(tab: Arc<Tab>) -> Result<DateTime<Tz>> {
     if let Some(datetime_str) = date_time_string {
         let parsed_datetime = DateTime::parse_from_str(&datetime_str, "%Y-%m-%dT%H:%M:%S%:z")?;
         let new_york = parsed_datetime.with_timezone(&New_York);
-        log::trace!("Scraped article time: {}", &datetime_str);
+        trace!("Scraped article time: {}", &datetime_str);
         Ok(new_york)
     } else {
         bail!("Unable to find datetime attribute");
@@ -84,7 +85,7 @@ fn scrape_article_time(tab: Arc<Tab>) -> Result<DateTime<Tz>> {
 fn scrape_article_content_title(element: Element<'_>) -> Result<(String, Option<String>)> {
     let href = element.get_attribute_value("href")?;
     let title = element.get_inner_text()?;
-    log::trace!("Scraped article title: {}", &title);
+    trace!("Scraped article title: {}", &title);
     Ok((title, href.map(|t| t.to_owned())))
 }
 
@@ -94,7 +95,7 @@ fn scrape_article_content_tags(elements: Vec<Element<'_>>) -> Result<Vec<String>
         let label = tag.get_inner_text()?;
         tags.push(label);
     }
-    log::trace!("Scraped article tags: {:?}", &tags);
+    trace!("Scraped article tags: {:?}", &tags);
     Ok(tags)
 }
 
@@ -111,31 +112,31 @@ fn scrape_article_content_summary(elements: Vec<Element<'_>>) -> Result<(String,
         }
         summary += &inner_text;
     }
-    log::trace!("Scraped article summary: {:?}", &summary);
+    trace!("Scraped article summary: {:?}", &summary);
     Ok((summary, summary_links))
 }
 
 fn scrape_article_content(tab: Arc<Tab>) -> Result<Vec<ArticleContent>> {
     let content_els = tab
-        .wait_for_elements("article.tile._article_osmln_1")
+        .wait_for_elements("article.tile._article_y23wr_1")
         .expect("Unable to create time selector");
     let mut article_contents = Vec::<ArticleContent>::new();
     for content in content_els {
-        let title_el = match content.find_element("div._title_osmln_9 a") {
+        let title_el = match content.find_element("div._title_y23wr_9 a") {
             Ok(el) => el,
             Err(_) => {
                 log::error!("Unable to find content title");
                 continue;
             }
         };
-        let tags_el = match content.find_elements("div._tileTags_osmln_50 span") {
+        let tags_el = match content.find_elements("div._tileTags_y23wr_50 span") {
             Ok(el) => el,
             Err(e) => {
                 log::error!("Unable to find content tags: {:?}", e);
                 Vec::new()
             }
         };
-        let summary_el = match content.find_elements("div._summaryContainer_osmln_364 p") {
+        let summary_el = match content.find_elements("div._summaryContainer_y23wr_355 p") {
             Ok(el) => el,
             Err(_) => {
                 bail!("Unable to find content summary");
@@ -158,6 +159,62 @@ fn scrape_article_content(tab: Arc<Tab>) -> Result<Vec<ArticleContent>> {
     Ok(article_contents)
 }
 
+fn week_of_month(year: i32, month: u32, day: u32) -> u32 {
+    // Get the weekday of the first day of the month (Mon=1, Sun=7)
+    let first_day = chrono::NaiveDate::from_ymd_opt(year, month, 1).unwrap();
+    let first_weekday = first_day.weekday().num_days_from_monday();
+
+    // Compute offset-adjusted day count
+    let adjusted_day = day + first_weekday;
+
+    // Integer division (1-indexed week number)
+    ((adjusted_day - 1) / 7) + 1
+}
+
+fn days_until_next_month(dt: DateTime<Utc>) -> i64 {
+    let date = dt.date_naive();
+
+    // Compute next month’s first day
+    let (year, month) = if date.month() == 12 {
+        (date.year() + 1, 1)
+    } else {
+        (date.year(), date.month() + 1)
+    };
+
+    let first_of_next = NaiveDate::from_ymd_opt(year, month, 1).unwrap();
+
+    // Difference in days
+    (first_of_next - date).num_days()
+}
+
+/// Returns the weekend number (1-indexed) of the given date's month.
+/// If the date is not a weekend, returns the most recent past weekend number.
+/// Returns None if no weekend has occurred yet in the month.
+fn weekend_number_or_last(dt: DateTime<Utc>) -> u32 {
+    let date = dt.date_naive();
+
+    // Find the first Saturday of the month
+    let mut first_saturday = NaiveDate::from_ymd_opt(date.year(), date.month(), 1).unwrap();
+    while first_saturday.weekday() != Weekday::Sat {
+        first_saturday = first_saturday.succ_opt().unwrap();
+    }
+
+    // If the date is before the first Saturday, no weekend yet
+    if date < first_saturday {
+        return 0;
+    }
+
+    // Find the most recent Saturday (even if the date is midweek)
+    let mut last_saturday = date;
+    while last_saturday.weekday() != Weekday::Sat {
+        last_saturday -= Duration::days(1);
+    }
+
+    // Compute how many weeks since the first Saturday
+    let days_since_first = (last_saturday - first_saturday).num_days();
+    (days_since_first as u32) / 7 + 1
+}
+
 fn timeout_variant_cache_constant(variant: ThingsToDoCycle) -> String {
     format!("{}-{}", TIMEOUT_STORAGE_PREFIX, &variant.to_string())
 }
@@ -166,13 +223,58 @@ fn timeout_variants_storage_key(
     article_time: DateTime<Tz>,
 ) -> StorageKey {
     let constant = timeout_variant_cache_constant(variant);
-    let expires_in = match variant {
-        ThingsToDoCycle::Today => 1,
-        ThingsToDoCycle::Week => 7,
-        ThingsToDoCycle::Weekend => 3,
-        ThingsToDoCycle::Month => 30,
+    let (issued_at, expires_in) = match variant {
+        ThingsToDoCycle::Today => {
+            let issued_at = if article_time.day() < chrono::Utc::now().day() {
+                Some(chrono::Utc::now())
+            } else {
+                Some(article_time.to_utc())
+            };
+            (issued_at, Some(1))
+        }
+        ThingsToDoCycle::Week => {
+            let article_week = week_of_month(
+                article_time.year(),
+                article_time.month(),
+                article_time.day(),
+            );
+            let current_week = week_of_month(
+                chrono::Utc::now().year(),
+                chrono::Utc::now().month(),
+                chrono::Utc::now().day(),
+            );
+            let issued_at = if article_week < current_week {
+                Some(chrono::Utc::now())
+            } else {
+                Some(article_time.to_utc())
+            };
+            (issued_at, Some(7))
+        }
+        ThingsToDoCycle::Weekend => {
+            let article_weekend = weekend_number_or_last(article_time.to_utc());
+            let current_weekend = weekend_number_or_last(chrono::Utc::now());
+            let issued_at = if article_weekend < current_weekend {
+                Some(chrono::Utc::now())
+            } else {
+                Some(article_time.to_utc())
+            };
+            (issued_at, None)
+        }
+        ThingsToDoCycle::Month => {
+            if article_time.month() < chrono::Utc::now().day() {
+                (
+                    Some(chrono::Utc::now()),
+                    Some(days_until_next_month(chrono::Utc::now())),
+                )
+            } else {
+                (
+                    Some(article_time.to_utc()),
+                    Some(days_until_next_month(article_time.to_utc())),
+                )
+            }
+        }
     };
-    StorageKey::new(&constant, Some(article_time.to_utc()), Some(expires_in))
+    StorageKey::new(&constant, issued_at, expires_in)
 }
 
 pub async fn scrape_things_to_do(variant: ThingsToDoCycle) -> Result<ThingsToDo> {
@@ -195,6 +297,7 @@ pub async fn scrape_things_to_do(variant: ThingsToDoCycle) -> Result<ThingsToDo>
             ThingsToDoCycle::Weekend => tab.navigate_to(WEEKEND_EVENTS_URL)?,
             ThingsToDoCycle::Month => tab.navigate_to(current_month_events_url())?,
         };
+        trace!("Navigated to: {:?}", tab.get_url());
 
         let article_time = scrape_article_time(tab.clone())?;
         let recent_todo = match variant {
