@@ -56,11 +56,11 @@ pub async fn scrape_uber_engineering_blog() -> Result<ScrapedEngineeringItems> {
         Some(item) => Ok(item),
         None => {
             let mut entries: ScrapedEngineeringItems = Vec::new();
-            // for page in 1..=10 {
-            //     let res = request_uber_engineering_page(page).await?;
-            //     let parsed = parse_uber_engineering_page(&res)?;
-            //     entries.extend(parsed);
-            // }
+            for page in 1..=10 {
+                let res = request_uber_engineering_page(page).await?;
+                let parsed = parse_uber_engineering_page(&res)?;
+                entries.extend(parsed);
+            }
             let storage_key = StorageKey::new(UBER_ENGINEERING_BLOG_STORAGE_CONSTANT, None, None);
             local_storage::write_item_to_storage(storage_key, &entries).await;
             Ok(entries)
