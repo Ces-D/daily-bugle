@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, bail};
 use chrono::{DateTime, NaiveDate, NaiveTime, TimeZone, Utc};
 use chrono_tz::America::New_York;
-use log::info;
+use log::{error, info, trace};
 use quick_xml::{Reader, events::Event};
 use reqwest::header;
 use std::io::Read;
@@ -32,12 +32,28 @@ where
     let mut handler = handler;
     loop {
         match reader.read_event_into(&mut buf) {
-            Err(e) => bail!("Error at position {}: {:?}", reader.error_position(), e),
+            Err(e) => {
+                error!("Error while parsing xml: {:?}", e);
+                bail!("Error at position {}: {:?}", reader.error_position(), e)
+            }
             Ok(Event::Eof) => break,
-            Ok(Event::Start(e)) => handler.start(e.name().as_ref())?,
-            Ok(Event::Text(e)) => handler.text(&e.decode()?.into_owned())?,
-            Ok(Event::End(e)) => handler.end(e.name().as_ref())?,
-            _ => {}
+            Ok(Event::Start(e)) => {
+                trace!(
+                    "Event::Start: {}",
+                    String::from_utf8_lossy(e.name().as_ref())
+                );
+                handler.start(e.name().as_ref())?
+            }
+            Ok(Event::Text(e)) => {
+                trace!("Event::Text: {}", String::from_utf8_lossy(e.as_ref()));
+                handler.text(&e.decode()?.into_owned())?
+            }
+            Ok(Event::End(e)) => {
+                trace!("Event::End: {}", String::from_utf8_lossy(e.name().as_ref()));
+                handler.end(e.name().as_ref())?
+            }
+            _ => {
+            }
         }
         buf.clear();
     }

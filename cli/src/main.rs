@@ -118,6 +118,32 @@ async fn main() -> anyhow::Result<()> {
                         let uber = web_scraper::uber::scrape_uber_engineering_blog().await?;
                         entries.extend(uber);
                     }
+                    command::TechnicalArticleSource::ImpervaApplicationSecurity => {
+                        let imperva_application_security =
+                            web_scraper::imperva::scrape_imperva_application_security_sitemap()
+                                .await?;
+                        entries.extend(imperva_application_security);
+                    }
+                    command::TechnicalArticleSource::ImpervaAvailability => {
+                        let imperva_availability =
+                            web_scraper::imperva::scrape_imperva_availability_sitemap().await?;
+                        entries.extend(imperva_availability);
+                    }
+                    command::TechnicalArticleSource::ImpervaDataSecurity => {
+                        let imperva_data_security =
+                            web_scraper::imperva::scrape_imperva_data_security_sitemap().await?;
+                        entries.extend(imperva_data_security);
+                    }
+                    command::TechnicalArticleSource::ImpervaDdos => {
+                        let imperva_ddos =
+                            web_scraper::imperva::scrape_imperva_ddos_sitemap().await?;
+                        entries.extend(imperva_ddos);
+                    }
+                    command::TechnicalArticleSource::ImpervaPerformance => {
+                        let imperva_performance =
+                            web_scraper::imperva::scrape_imperva_performance_sitemap().await?;
+                        entries.extend(imperva_performance);
+                    }
                 }
             }
             let random_index = rand::random_range(..entries.len());

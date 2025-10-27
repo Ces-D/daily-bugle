@@ -20,6 +20,11 @@ pub enum TechnicalArticleSource {
     Notion,
     Openai,
     Uber,
+    ImpervaApplicationSecurity,
+    ImpervaAvailability,
+    ImpervaDataSecurity,
+    ImpervaDdos,
+    ImpervaPerformance,
 }
 
 #[derive(Debug, clap::Subcommand)]
