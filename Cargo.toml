@@ -1,6 +1,13 @@
 [workspace]
 resolver = "3"
-members = ["cli", "config", "local_storage", "weather", "web_scraper"]
+members = [
+  "cli",
+  "config",
+  "local_storage",
+  "reminders",
+  "weather",
+  "web_scraper",
+]
 default-members = ["cli"]
 
 [workspace.package]
@@ -32,3 +39,6 @@ config = { path = "./config" }
 weather = { path = "./weather" }
 local_storage = { path = "./local_storage" }
 web_scraper = { path = "./web_scraper" }
+
+[workspace.lints.clippy]
+unwrap_used = "deny"

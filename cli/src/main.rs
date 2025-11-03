@@ -151,7 +151,11 @@ async fn main() -> anyhow::Result<()> {
             serde_json::to_writer_pretty(&std::io::stdout(), &random_entry)?;
             Ok(())
         }
-
+        Command::Reminder => {
+            let reminders = config::read_reminders_file()?;
+            serde_json::to_writer_pretty(&std::io::stdout(), &reminders)?;
+            Ok(())
+        }
         Command::TestNode => {
             let o = std::process::Command::new("node")
                 .arg("google/dist/init.js")

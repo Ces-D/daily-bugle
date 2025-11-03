@@ -38,6 +38,8 @@ pub enum Command {
     },
     #[clap(about = "Get the list of things to do in nyc")]
     NYCEvent { period: TimeOutTimePeriod },
+    #[clap(about = "View stored reminders and important dates")]
+    Reminder,
     #[clap(about = "Set or get countdowns ")]
     TestNode,
 }
@@ -47,4 +49,6 @@ pub enum Command {
 pub struct App {
     #[clap(subcommand)]
     pub command: Command,
+    #[clap(long, short, help = "Create  a reminder from a prompt")]
+    reminder: Option<String>,
 }
