@@ -20,3 +20,4 @@ serde_json.workspace = true
 config.workspace = true
 weather.workspace = true
 web_scraper.workspace = true
+reminders.workspace = true

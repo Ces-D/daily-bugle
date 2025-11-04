@@ -39,6 +39,7 @@ config = { path = "./config" }
 weather = { path = "./weather" }
 local_storage = { path = "./local_storage" }
 web_scraper = { path = "./web_scraper" }
+reminders = { path = "./reminders" }
 
 [workspace.lints.clippy]
 unwrap_used = "deny"
