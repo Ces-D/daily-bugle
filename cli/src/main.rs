@@ -1,4 +1,5 @@
 mod app;
+mod db;
 mod logger;
 mod reminder_command;
 mod social_command;
@@ -11,6 +12,7 @@ use serde_json::json;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     logger::init_logging();
+
     let app = app::App::parse();
     let bugle_config = config::read_config_file()?;
 
@@ -40,7 +42,10 @@ async fn main() -> anyhow::Result<()> {
                 bail!("Config.weather must be populated")
             }
         }
-        app::Command::Social(args) => social_command::handle_social_command(args).await,
+
+        app::Command::Social(args) => {
+            social_command::handle_social_command(args, bugle_config).await
+        }
 
         app::Command::Technical(args) => tech_command::handle_tech_command(args).await,
 

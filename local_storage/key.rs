@@ -31,7 +31,6 @@ impl StorageKey {
     }
 }
 
-
 /// Implement PartialEq to define custom equality logic.
 /// Two keys are equal if their `constant` fields are equal.
 impl PartialEq for StorageKey {

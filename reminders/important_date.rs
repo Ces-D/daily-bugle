@@ -1,10 +1,10 @@
-use anyhow::Context;
+use anyhow::{Context, Result};
 use chrono::{DateTime, Datelike, Month, TimeZone, Utc};
 use rrule::{Frequency, NWeekday, RRule, Tz, Unvalidated, Validated, Weekday};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::str::FromStr;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Reminders {
     pub dates: Vec<ImportantDate>,
 }
@@ -19,6 +19,31 @@ pub struct ImportantDate {
     )]
     pub recurrence: RRule<Validated>,
     pub tags: Vec<String>,
+}
+
+impl<'a> FromIterator<&'a ImportantDate> for Reminders {
+    fn from_iter<T: IntoIterator<Item = &'a ImportantDate>>(iter: T) -> Self {
+        let mut reminders = Reminders::default();
+        for date in iter {
+            reminders.dates.push(date.clone());
+        }
+        reminders
+    }
+}
+
+impl ImportantDate {
+    pub fn is_expired(&self) -> bool {
+        match self.recurrence.get_until() {
+            Some(dt) => {
+                if dt > &Utc::now() {
+                    return false;
+                } else {
+                    return true;
+                }
+            }
+            None => false,
+        }
+    }
 }
 
 pub fn serialize_rrule_to_string<S>(
@@ -267,4 +292,152 @@ pub fn defaults() -> anyhow::Result<Reminders> {
             },
         ],
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::{Duration, Timelike};
+
+    #[test]
+    fn test_default_dates_not_expired() {
+        // All default dates should not be expired since they don't have an UNTIL clause
+        let defaults = defaults().expect("Failed to get default dates");
+
+        for date in &defaults.dates {
+            assert!(
+                !date.is_expired(),
+                "Default date '{}' should not be expired",
+                date.name
+            );
+        }
+    }
+
+    #[test]
+    fn test_date_with_past_until_is_expired() {
+        // Create a date that expired yesterday
+        let now = Utc::now();
+        let past = now - Duration::days(1);
+        let past_until = rrule::Tz::UTC
+            .with_ymd_and_hms(past.year(), past.month(), past.day(), 0, 0, 0)
+            .unwrap();
+
+        let expired_date = ImportantDate {
+            name: "Past Event".to_string(),
+            category: "test".to_string(),
+            recurrence: RRule::new(Frequency::Daily)
+                .until(past_until)
+                .validate(current_year())
+                .expect("Failed to validate expired date"),
+            tags: vec!["test".to_string()],
+        };
+
+        assert!(
+            expired_date.is_expired(),
+            "Date with UNTIL in the past should be expired"
+        );
+    }
+
+    #[test]
+    fn test_date_with_future_until_not_expired() {
+        // Create a date that expires tomorrow
+        let now = Utc::now();
+        let future = now + Duration::days(1);
+        let future_until = rrule::Tz::UTC
+            .with_ymd_and_hms(future.year(), future.month(), future.day(), 0, 0, 0)
+            .unwrap();
+
+        let future_date = ImportantDate {
+            name: "Future Event".to_string(),
+            category: "test".to_string(),
+            recurrence: RRule::new(Frequency::Daily)
+                .until(future_until)
+                .validate(current_year())
+                .expect("Failed to validate future date"),
+            tags: vec!["test".to_string()],
+        };
+
+        assert!(
+            !future_date.is_expired(),
+            "Date with UNTIL in the future should not be expired"
+        );
+    }
+
+    #[test]
+    fn test_date_without_until_not_expired() {
+        // Create a date without an UNTIL clause (indefinite recurrence)
+        let indefinite_date = ImportantDate {
+            name: "Indefinite Event".to_string(),
+            category: "test".to_string(),
+            recurrence: RRule::new(Frequency::Weekly)
+                .by_weekday(vec![NWeekday::Nth(1, Weekday::Mon)])
+                .validate(current_year())
+                .expect("Failed to validate indefinite date"),
+            tags: vec!["test".to_string()],
+        };
+
+        assert!(
+            !indefinite_date.is_expired(),
+            "Date without UNTIL should not be expired"
+        );
+    }
+
+    #[test]
+    fn test_date_with_until_exactly_now() {
+        // Create a date that expires right now (edge case)
+        let now = Utc::now();
+        let now_until = rrule::Tz::UTC
+            .with_ymd_and_hms(
+                now.year(),
+                now.month(),
+                now.day(),
+                now.hour(),
+                now.minute(),
+                now.second(),
+            )
+            .unwrap();
+
+        let edge_case_date = ImportantDate {
+            name: "Edge Case Event".to_string(),
+            category: "test".to_string(),
+            recurrence: RRule::new(Frequency::Yearly)
+                .by_month(&[Month::January])
+                .by_month_day(vec![1])
+                .until(now_until)
+                .validate(current_year())
+                .expect("Failed to validate edge case date"),
+            tags: vec!["test".to_string()],
+        };
+
+        // When UNTIL equals now, it should be expired (not in the future)
+        assert!(
+            edge_case_date.is_expired(),
+            "Date with UNTIL equal to now should be expired"
+        );
+    }
+
+    #[test]
+    fn test_specific_default_dates() {
+        // Test a few specific default dates by name
+        let defaults = defaults().expect("Failed to get default dates");
+
+        let christmas = defaults
+            .dates
+            .iter()
+            .find(|d| d.name == "Christmas Day")
+            .expect("Christmas Day should exist in defaults");
+
+        assert!(!christmas.is_expired(), "Christmas should not be expired");
+
+        let spring_equinox = defaults
+            .dates
+            .iter()
+            .find(|d| d.name == "Spring Equinox")
+            .expect("Spring Equinox should exist in defaults");
+
+        assert!(
+            !spring_equinox.is_expired(),
+            "Spring Equinox should not be expired"
+        );
+    }
 }

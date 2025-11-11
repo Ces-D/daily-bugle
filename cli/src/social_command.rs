@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand, ValueEnum};
+use log::{info, trace};
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum TimeOutTimePeriod {
@@ -11,7 +12,12 @@ pub enum TimeOutTimePeriod {
 #[derive(Debug, Subcommand)]
 pub enum SocialCommand {
     #[clap(about = "Get a list of things to do in nyc")]
-    Timeout { period: TimeOutTimePeriod },
+    Timeout {
+        period: TimeOutTimePeriod,
+    },
+    Find {
+        query: String,
+    },
 }
 
 #[derive(Debug, Parser)]
@@ -20,7 +26,11 @@ pub struct SocialArgs {
     pub command: SocialCommand,
 }
 
-pub async fn handle_social_command(args: SocialArgs) -> anyhow::Result<()> {
+pub async fn handle_social_command(
+    args: SocialArgs,
+    config: config::configuration::Config,
+) -> anyhow::Result<()> {
+    trace!("Starting handle_social_command");
     match args.command {
         SocialCommand::Timeout { period } => {
             let out = match period {
@@ -49,8 +59,17 @@ pub async fn handle_social_command(args: SocialArgs) -> anyhow::Result<()> {
                     .await?
                 }
             };
+            info!("Success scraping: {} results", out.len());
             serde_json::to_writer_pretty(std::io::stdout(), &out)?;
             Ok(())
         }
+        SocialCommand::Find { query } => {
+            todo!()
+        }
     }
+}
+
+struct QueryMetadata {
+    period: chrono::Duration,
+    interests: Vec<String>,
 }

@@ -4,7 +4,7 @@ use crate::constant::{
     NOVEMBER_EVENTS_URL, OCTOBER_EVENTS_URL, SEPTEMBER_EVENTS_URL, TIMEOUT_STORAGE_PREFIX,
     TODAY_EVENTS_URL, WEEK_EVENTS_URL, WEEKEND_EVENTS_URL,
 };
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Context, Result, anyhow, bail};
 use chrono::{DateTime, Datelike, Duration, NaiveDate, Utc, Weekday};
 use chrono_tz::{America::New_York, Tz};
 use headless_chrome::{Browser, Element, LaunchOptions, Tab, browser::default_executable};
@@ -46,6 +46,12 @@ pub struct ThingsToDo {
     article: Vec<ArticleContent>,
 }
 
+impl ThingsToDo {
+    pub fn len(&self) -> usize {
+        self.article.len()
+    }
+}
+
 fn current_month_events_url() -> &'static str {
     let now = chrono::Local::now();
     let month = now.month();
@@ -70,7 +76,7 @@ fn current_month_events_url() -> &'static str {
 fn scrape_article_time(tab: Arc<Tab>) -> Result<DateTime<Tz>> {
     let time_el = tab
         .wait_for_element("time._articleTime_1wpy4_12")
-        .expect("Unable to create time selector");
+        .with_context(|| "Unable to create time selector")?;
     let date_time_string = time_el.get_attribute_value("datetime")?;
     if let Some(datetime_str) = date_time_string {
         let parsed_datetime = DateTime::parse_from_str(&datetime_str, "%Y-%m-%dT%H:%M:%S%:z")?;
@@ -118,25 +124,25 @@ fn scrape_article_content_summary(elements: Vec<Element<'_>>) -> Result<(String,
 
 fn scrape_article_content(tab: Arc<Tab>) -> Result<Vec<ArticleContent>> {
     let content_els = tab
-        .wait_for_elements("article.tile._article_y23wr_1")
-        .expect("Unable to create time selector");
+        .wait_for_elements("article.tile._article_1doy9_1")
+        .with_context(|| "Unable to create article content selector")?;
     let mut article_contents = Vec::<ArticleContent>::new();
     for content in content_els {
-        let title_el = match content.find_element("div._title_y23wr_9 a") {
+        let title_el = match content.find_element("div._title_1doy9_9 a") {
             Ok(el) => el,
             Err(_) => {
                 log::error!("Unable to find content title");
                 continue;
             }
         };
-        let tags_el = match content.find_elements("div._tileTags_y23wr_50 span") {
+        let tags_el = match content.find_elements("div._tileTags_1doy9_50 span") {
             Ok(el) => el,
             Err(e) => {
                 log::error!("Unable to find content tags: {:?}", e);
                 Vec::new()
             }
         };
-        let summary_el = match content.find_elements("div._summaryContainer_y23wr_355 p") {
+        let summary_el = match content.find_elements("div._summaryContainer_1doy9_359 p") {
             Ok(el) => el,
             Err(_) => {
                 bail!("Unable to find content summary");
@@ -282,8 +288,10 @@ pub async fn scrape_things_to_do(variant: ThingsToDoCycle) -> Result<ThingsToDo>
     let cached_todo: Option<ThingsToDo> = local_storage::find_stored_item(&cache_constant).await;
 
     if cached_todo.is_some() {
+        trace!("Time_out cache hit");
         Ok(cached_todo.unwrap())
     } else {
+        trace!("No Time_out cache hit. Starting headless browser");
         let launch_options = LaunchOptions::default_builder()
             .idle_browser_timeout(core::time::Duration::from_secs(60))
             .path(Some(default_executable().map_err(|e| anyhow!(e))?))

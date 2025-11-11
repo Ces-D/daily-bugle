@@ -84,3 +84,35 @@ pub const IMPERVA_LEARN_AVAILABILITY_SITEMAP_URL: &str =
     "https://www.imperva.com/learn/availability-sitemap.xml";
 pub const IMPERVA_LEARN_PERFORMANCE_SITEMAP_URL: &str =
     "https://www.imperva.com/learn/performance-sitemap.xml";
+
+// Netflix Tech Blog
+pub const NETFLIX_TECH_BLOG_SITEMAP_URL: &str = "https://netflixtechblog.com/sitemap/sitemap.xml";
+
+// Github Blog
+pub const GITHUB_BLOG_SITEMAP_URL: &str = "https://github.blog/post-sitemap4.xml";
+
+// Medium Engineering Blog
+pub const MEDIUM_ENGINEERING_BLOG_SITEMAP_URL: &str =
+    "https://medium.engineering/sitemap/sitemap.xml";
+
+// NyTimes Open Blog
+pub const NYTIMES_OPEN_BLOG_SITEMAP_URL: &str = "https://open.nytimes.com/sitemap/sitemap.xml";
+
+// Stripe Engineering Blog
+pub const STRIPE_ENGINEERING_BLOG_SITEMAP_URL: &str = "https://stripe.com/sitemap/partition-5.xml";
+
+// Square Engineering Blog
+pub const SQUARE_ENGINEERING_BLOG_SITEMAP_URL: &str =
+    "https://developer.squareup.com/blog/sitemap-0.xml";
+
+// Dan Abramov Blog
+pub const DAN_ABORMOV_BLOG_URL: &str = "https://overreacted.io/";
+
+// Deep Learning - Andrew Ng Blog
+pub const DEEP_LEARNING_SITEMAP_URL: &str = "https://www.deeplearning.ai/sitemap-1.xml";
+
+// Etsy Code as Craft
+pub const ETSY_CODE_AS_CRAFT_URL: &str = "https://www.etsy.com/codeascraft";
+
+// Lea Verou Blog
+pub const LEA_VEROU_BLOG_URL: &str = "https://lea.verou.me/blog/"; // Get years posts by adding /2025

@@ -105,6 +105,7 @@ impl LocalStorage {
 
 /// Find a stored item by its constant name. Helper function since implementation is always same.
 pub async fn find_stored_item<T: serde::de::DeserializeOwned>(constant: &str) -> Option<T> {
+    trace!("Searching for stored item: {}", constant);
     let storage_key = StorageKey::new(&constant, None, None);
     let storage = LocalStorage::new_async().await.ok()?;
     if let Some(bytes) = storage.get_item(&storage_key).await {
@@ -120,6 +121,7 @@ pub async fn write_item_to_storage<T: serde::Serialize>(
     storage_key: StorageKey,
     item: &T,
 ) -> Option<()> {
+    trace!("Writing item to storage: {}", storage_key.constant);
     let mut storage = LocalStorage::new_async().await.ok()?;
     match serde_json::to_vec(item) {
         Ok(serialized) => storage.insert_item(&storage_key, serialized).await.ok(),

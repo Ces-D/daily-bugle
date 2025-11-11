@@ -15,4 +15,4 @@ chrono.workspace = true
 log.workspace = true
 toml.workspace = true
 
-config.workspace = true
+local_storage.workspace = true

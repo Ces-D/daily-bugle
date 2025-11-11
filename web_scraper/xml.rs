@@ -52,8 +52,7 @@ where
                 trace!("Event::End: {}", String::from_utf8_lossy(e.name().as_ref()));
                 handler.end(e.name().as_ref())?
             }
-            _ => {
-            }
+            _ => {}
         }
         buf.clear();
     }

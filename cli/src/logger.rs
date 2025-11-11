@@ -5,7 +5,7 @@ pub fn init_logging() {
     const MEMBERS: [&str; 5] = ["cli", "config", "local_storage", "web_scraper", "weather"];
 
     // Get global log level from env or use default
-    let level = std::env::var("DAILY_BUGLE_LOG").unwrap_or_else(|_| "warn".to_string());
+    let level = std::env::var("RUST_LOG").unwrap_or_else(|_| "warn".to_string());
 
     // Build filter string applying the same level to all modules
     let filters = MEMBERS
