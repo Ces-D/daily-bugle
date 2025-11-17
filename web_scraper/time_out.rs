@@ -50,6 +50,9 @@ impl ThingsToDo {
     pub fn len(&self) -> usize {
         self.article.len()
     }
+    pub fn articles(&self) -> &Vec<ArticleContent> {
+        &self.article
+    }
 }
 
 fn current_month_events_url() -> &'static str {

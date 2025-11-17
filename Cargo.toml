@@ -3,6 +3,7 @@ resolver = "3"
 members = [
   "cli",
   "config",
+  "knowledge_graph",
   "local_storage",
   "reminders",
   "weather",
@@ -27,6 +28,7 @@ log = "0.4.28"
 flate2 = "1.1.4"
 env_logger = "0.11.8"
 quick-xml = "0.38.3"
+ollama-rs = "0.3.2"
 rrule = "0.14.0"
 scraper = "0.24.0"
 serde = { version = "1.0.225", features = ["derive"] }
@@ -42,6 +44,7 @@ weather = { path = "./weather" }
 local_storage = { path = "./local_storage" }
 web_scraper = { path = "./web_scraper" }
 reminders = { path = "./reminders" }
+rag = { path = "./rag" }
 
 [workspace.lints.clippy]
 unwrap_used = "deny"

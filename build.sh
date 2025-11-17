@@ -19,7 +19,7 @@ function info() {
 }
 
 info "Building cli"
-cargo build
+cargo clippy --fix && cargo +nightly fmt && cargo build
 info "Building supporting node module"
 cd google
 pnpm build
