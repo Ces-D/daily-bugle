@@ -49,11 +49,14 @@ Here is the diff:
 
 pub async fn git_commit_message(model: &str) -> Result<String> {
     let git_diff_process = std::process::Command::new("git")
-        .args(vec!["diff", "--staged", "':(exclude)*lock*'"])
+        .args(vec!["diff", "--staged", ":(exclude)*lock*"])
         .output()?;
     if git_diff_process.status.success() {
-        let client = Client::new();
         let diff = String::from_utf8_lossy(&git_diff_process.stdout);
+        if diff.is_empty() {
+            bail!("No changes detected in git diff");
+        };
+        let client = Client::new();
         let request = CreateChatCompletionRequestArgs::default()
             .messages(vec![
                 ChatCompletionRequestMessage::System(ChatCompletionRequestSystemMessage {
