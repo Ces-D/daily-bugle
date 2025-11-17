@@ -3,7 +3,7 @@ resolver = "3"
 members = [
   "cli",
   "config",
-  "knowledge_graph",
+  "git",
   "local_storage",
   "reminders",
   "weather",
@@ -44,7 +44,7 @@ weather = { path = "./weather" }
 local_storage = { path = "./local_storage" }
 web_scraper = { path = "./web_scraper" }
 reminders = { path = "./reminders" }
-rag = { path = "./rag" }
+git = { path = "./git" }
 
 [workspace.lints.clippy]
 unwrap_used = "deny"

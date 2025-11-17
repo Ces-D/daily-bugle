@@ -1,0 +1,16 @@
+[package]
+name = "git"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[lib]
+path = "git.rs"
+
+[dependencies]
+async-openai.workspace = true
+anyhow.workspace = true
+log.workspace = true
+
+[lints]
+workspace = true

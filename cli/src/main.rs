@@ -15,9 +15,10 @@ pub enum Command {
         complete: bool,
     },
 
-    #[clap(about = "Get a random article from the list of technical article sources")]
+    #[clap(about = "Commands related to technical subjects")]
     Technical(tech_command::TechArgs),
 
+    #[clap(about = "Commands related to socialization")]
     Social(social_command::SocialArgs),
 
     Reminder(reminder_command::ReminderArgs),

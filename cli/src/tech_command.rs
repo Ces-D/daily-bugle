@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand, ValueEnum};
+use log::info;
 use web_scraper::ScrapedEngineeringItems;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -22,8 +23,14 @@ pub enum TechnicalArticleSource {
 
 #[derive(Debug, Subcommand)]
 pub enum TechCommand {
+    #[clap(about = "Get a random article from a list of sources")]
     RandomArticle {
         sources: Vec<TechnicalArticleSource>,
+    },
+    #[clap(about = "Generate a git commit message")]
+    GitCommit {
+        #[clap(long, short, default_value = "gpt-5.1-2025-11-13")]
+        model: Option<String>,
     },
 }
 
@@ -113,6 +120,14 @@ pub async fn handle_tech_command(args: TechArgs) -> anyhow::Result<()> {
             let random_index = rand::random_range(..entries.len());
             let random_entry = entries.get(random_index).unwrap();
             serde_json::to_writer_pretty(&std::io::stdout(), &random_entry)?;
+            Ok(())
+        }
+        TechCommand::GitCommit { model } => {
+            let commit_message =
+                git::git_commit_message(model.expect("We provided a default model").as_str())
+                    .await?;
+            info!("Commit message Generated Succesfully");
+            println!("{}", commit_message);
             Ok(())
         }
     }
