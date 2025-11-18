@@ -1,6 +1,5 @@
-use std::path::PathBuf;
-
 use serde::{Deserialize, Deserializer, Serialize};
+use std::path::PathBuf;
 
 /// Expands environment variables and tilde in path strings
 /// Supports:
