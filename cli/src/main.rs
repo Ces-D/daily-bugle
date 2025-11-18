@@ -2,6 +2,7 @@ mod logger;
 mod reminder_command;
 mod social_command;
 mod tech_command;
+mod tool_command;
 
 use anyhow::{Context, Ok, bail};
 use clap::Parser;
@@ -20,6 +21,9 @@ pub enum Command {
 
     #[clap(about = "Commands related to socialization")]
     Social(social_command::SocialArgs),
+
+    #[clap(about = "Commands of a variety")]
+    Tool(tool_command::ToolArgs),
 
     Reminder(reminder_command::ReminderArgs),
     #[clap(about = "Set or get countdowns ")]
@@ -72,6 +76,16 @@ async fn main() -> anyhow::Result<()> {
         Command::Technical(args) => tech_command::handle_tech_command(args).await,
 
         Command::Reminder(args) => reminder_command::handle_reminder_command(args).await,
+
+        Command::Tool(tool_args) => {
+            tool_command::handle_tool_command(
+                tool_args,
+                bugle_config
+                    .career
+                    .expect("Career config must be populated"),
+            )
+            .await
+        }
 
         Command::TestNode => {
             let o = std::process::Command::new("node")
