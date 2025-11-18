@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = [
+  "career",
   "cli",
   "config",
   "git",
@@ -34,6 +35,7 @@ scraper = "0.24.0"
 serde = { version = "1.0.225", features = ["derive"] }
 serde_json = "1.0.145"
 surrealdb = "2.3.10"
+pdf-extract = "0.10.0"
 rand = "0.9.2"
 tokio = { version = "1", features = ["full"] }
 toml = "0.9.7"
@@ -45,6 +47,7 @@ local_storage = { path = "./local_storage" }
 web_scraper = { path = "./web_scraper" }
 reminders = { path = "./reminders" }
 git = { path = "./git" }
+career = { path = "./career" }
 
 [workspace.lints.clippy]
 unwrap_used = "deny"

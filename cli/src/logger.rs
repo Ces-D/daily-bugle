@@ -2,10 +2,17 @@ use env_logger::Env;
 use log::warn;
 
 pub fn init_logging() {
-    const MEMBERS: [&str; 5] = ["cli", "config", "local_storage", "web_scraper", "weather"];
+    const MEMBERS: [&str; 6] = [
+        "cli",
+        "config",
+        "local_storage",
+        "web_scraper",
+        "weather",
+        "career",
+    ];
 
     // Get global log level from env or use default
-    let level = std::env::var("RUST_LOG").unwrap_or_else(|_| "error".to_string());
+    let level = std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string());
 
     // Build filter string applying the same level to all modules
     let filters = MEMBERS
