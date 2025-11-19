@@ -4,9 +4,39 @@ use async_openai::{
     types::{
         ChatCompletionRequestDeveloperMessage, ChatCompletionRequestDeveloperMessageContent,
         ChatCompletionRequestMessage, ChatCompletionRequestSystemMessage,
-        ChatCompletionRequestSystemMessageContent, CreateChatCompletionRequestArgs,
+        ChatCompletionRequestSystemMessageContent, CreateChatCompletionRequest,
+        CreateChatCompletionRequestArgs,
     },
 };
+
+fn system_message(text: &str) -> ChatCompletionRequestMessage {
+    ChatCompletionRequestMessage::System(ChatCompletionRequestSystemMessage {
+        content: ChatCompletionRequestSystemMessageContent::Text(text.to_string()),
+        ..Default::default()
+    })
+}
+
+fn developer_message(text: String) -> ChatCompletionRequestMessage {
+    ChatCompletionRequestMessage::Developer(ChatCompletionRequestDeveloperMessage {
+        content: ChatCompletionRequestDeveloperMessageContent::Text(text),
+        ..Default::default()
+    })
+}
+
+async fn make_chat_completion_request(request: CreateChatCompletionRequest) -> Result<String> {
+    let client = Client::new();
+    let response = client
+        .chat()
+        .create(request)
+        .await
+        .with_context(|| "Failed to create chat completion")?;
+    let message = response
+        .choices
+        .first()
+        .and_then(|choice| choice.message.content.clone())
+        .with_context(|| "Failed to gather first message from response")?;
+    Ok(message)
+}
 
 const GIT_COMMIT_MESSAGE_SYSTEM_PROMPT:&str="
 You are a commit message assistant following the Conventional Commits specification (v1.0.0). See: https://www.conventionalcommits.org/en/v1.0.0/
@@ -56,38 +86,86 @@ pub async fn git_commit_message(model: &str) -> Result<String> {
         if diff.is_empty() {
             bail!("No changes detected in git diff");
         };
-        let client = Client::new();
         let request = CreateChatCompletionRequestArgs::default()
             .messages(vec![
-                ChatCompletionRequestMessage::System(ChatCompletionRequestSystemMessage {
-                    content: ChatCompletionRequestSystemMessageContent::Text(
-                        GIT_COMMIT_MESSAGE_SYSTEM_PROMPT.to_string(),
-                    ),
-                    ..Default::default()
-                }),
-                ChatCompletionRequestMessage::Developer(ChatCompletionRequestDeveloperMessage {
-                    content: ChatCompletionRequestDeveloperMessageContent::Text(diff.to_string()),
-                    ..Default::default()
-                }),
+                system_message(GIT_COMMIT_MESSAGE_SYSTEM_PROMPT),
+                developer_message(diff.to_string()),
             ])
             .model(model)
             .build()
             .with_context(|| "Failed to create git diff chat completion request")?;
-        let response = client
-            .chat()
-            .create(request)
-            .await
-            .with_context(|| "Failed to create chat completion")?;
-
-        let commit_message = response
-            .choices
-            .first()
-            .and_then(|choice| choice.message.content.clone())
-            .with_context(|| "No commit message in response")?;
-
+        let commit_message = make_chat_completion_request(request).await?;
         Ok(commit_message)
     } else {
         let error_message = String::from_utf8_lossy(&git_diff_process.stderr);
         bail!("Failed to get git diff: {}", error_message);
+    }
+}
+
+const PULL_REQUEST_MESSAGE_SYSTEM_PROMPT: &str = "
+You are a Pull Request description assistant.
+
+Given a list of commits (typically all commits ahead of `origin/main` or another target branch), analyze the changes
+and generate a high-quality Pull Request **title** and **description** suitable for engineering teams, code review, and
+changelog automation.
+
+Your output should:
+
+1. Produce a **Pull Request title**:
+   - Short (ideally < 80 characters).
+   - Written in imperative mood (“add”, “update”, “fix”, “refactor”).
+   - Summarize the overall impact of all commits.
+   - If the changes are broad, prefer describing the highest-level impact rather than listing everything.
+
+2. Produce a **Pull Request description** containing:
+   - A concise **summary** of what was changed and why.
+   - A **Changes** section that lists key modifications (group similar changes together).
+   - A **Motivation** or **Context** section when relevant—explain why the change set is needed.
+   - A **Technical Notes** section for non-obvious implementation decisions, architectural impacts, trade-offs, or
+     constraints.
+   - A **Breaking Changes** section if any commit introduces backward-incompatible behavior.
+   - A **Testing** section describing how the changes were tested (unit tests, manual steps, screenshots, etc.).
+   - A **Checklist** section for standard PR hygiene (optional but encouraged).
+
+3. Follow formatting guidelines:
+   - Use clear Markdown headings.
+   - Keep line lengths ~120 characters or less.
+   - Prefer bullet points for changes and technical notes.
+   - Do not simply restate commit messages—synthesize them into a unified narrative.
+
+4. The description should be useful for:
+   - Reviewers trying to understand intent and scope.
+   - Future developers reading the commit history.
+   - Release note or changelog generation.
+
+---
+
+You will be provided with:  
+- A list of commits ahead of the target branch  
+Use this information to generate the PR title and description.
+";
+
+pub async fn git_pull_request_message(model: &str) -> Result<String> {
+    let commits_up_to_main_branch = std::process::Command::new("git")
+        .args(vec!["log", "origin/main.."])
+        .output()?;
+    if commits_up_to_main_branch.status.success() {
+        let diff = String::from_utf8_lossy(&commits_up_to_main_branch.stdout);
+        if diff.is_empty() {
+            bail!("No changes detected in git diff");
+        };
+        let request = CreateChatCompletionRequestArgs::default()
+            .messages(vec![
+                system_message(PULL_REQUEST_MESSAGE_SYSTEM_PROMPT),
+                developer_message(diff.to_string()),
+            ])
+            .model(model)
+            .build()
+            .with_context(|| "Failed to create git pull request completion request")?;
+        let pull_request_message = make_chat_completion_request(request).await?;
+        Ok(pull_request_message)
+    } else {
+        let error_message = String::from_utf8_lossy(&commits_up_to_main_branch.stderr);
+        bail!("Failed to get commits up to main branch: {}", error_message);
     }
 }
