@@ -36,7 +36,7 @@ pub async fn handle_good_morning_command(
                 "rain_intensity": weather.data.values.rain_intensity,
             },
             "social": timeout_events.articles(),
-            "news": top_news.sources,
+            "news": top_news.articles,
     });
 
     serde_json::to_writer_pretty(&std::io::stdout(), &out)?;
