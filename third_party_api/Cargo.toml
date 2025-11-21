@@ -1,0 +1,23 @@
+[package]
+name = "third_party_api"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[lib]
+path = "third_party_api.rs"
+
+[dependencies]
+log.workspace = true
+reqwest.workspace = true
+flate2.workspace = true
+anyhow.workspace = true
+url.workspace = true
+rand.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true
