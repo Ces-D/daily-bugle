@@ -16,3 +16,6 @@ log.workspace = true
 toml.workspace = true
 
 local_storage.workspace = true
+
+[lints]
+workspace = true

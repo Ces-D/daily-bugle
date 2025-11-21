@@ -1,6 +1,9 @@
 use anyhow::Ok;
 use clap::{Parser, Subcommand, ValueEnum};
+use config::configuration::Config;
 use log::info;
+use strum::VariantNames;
+use third_party_api::news::request_response::{Category, Country, Language};
 use web_scraper::ScrapedEngineeringItems;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -38,6 +41,15 @@ pub enum TechCommand {
         #[clap(long, short, default_value = "gpt-5.1-2025-11-13")]
         model: Option<String>,
     },
+    #[clap(about = "Get a list of news api sources ")]
+    NewsSources {
+        #[clap(short, long, value_parser = clap::builder::PossibleValuesParser::new(Country::VARIANTS), default_value="us")]
+        country: Option<String>,
+        #[clap(short, long, value_parser = clap::builder::PossibleValuesParser::new(Language::VARIANTS), default_value="en")]
+        language: Option<String>,
+        #[clap(short='a', long, value_parser = clap::builder::PossibleValuesParser::new(Category::VARIANTS))]
+        category: Option<String>,
+    },
 }
 
 #[derive(Debug, Parser)]
@@ -46,7 +58,7 @@ pub struct TechArgs {
     pub command: TechCommand,
 }
 
-pub async fn handle_tech_command(args: TechArgs) -> anyhow::Result<()> {
+pub async fn handle_tech_command(args: TechArgs, config: Config) -> anyhow::Result<()> {
     match args.command {
         TechCommand::RandomArticle { sources } => {
             let mut entries: ScrapedEngineeringItems = vec![];
@@ -142,6 +154,29 @@ pub async fn handle_tech_command(args: TechArgs) -> anyhow::Result<()> {
                     .await?;
             info!("Pull Request message Generated Succesfully");
             println!("{}", pr_message);
+            Ok(())
+        }
+        TechCommand::NewsSources {
+            country,
+            language,
+            category,
+        } => {
+            let country: Option<Country> = country.map(|s| s.parse()).transpose()?;
+            let language: Option<Language> = language.map(|s| s.parse()).transpose()?;
+            let category: Option<Category> = category.map(|s| s.parse()).transpose()?;
+
+            let url = third_party_api::news::HeadlineSourceUrl {
+                api_key: config
+                    .news
+                    .expect("News config required for this command")
+                    .api_key,
+                country,
+                language,
+                category,
+            };
+
+            let response = third_party_api::news::top_headline_sources(url).await?;
+            serde_json::to_writer_pretty(&std::io::stdout(), &response)?;
             Ok(())
         }
     }

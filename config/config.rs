@@ -1,4 +1,6 @@
 pub mod configuration;
+mod path;
+
 use anyhow::{Context, bail};
 use log::info;
 use std::path::PathBuf;

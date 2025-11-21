@@ -7,8 +7,8 @@ pub fn init_logging() {
         "config",
         "local_storage",
         "web_scraper",
-        "weather",
         "career",
+        "third_party_api",
     ];
 
     // Get global log level from env or use default

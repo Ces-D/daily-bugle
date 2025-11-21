@@ -1,21 +1,15 @@
+mod good_morning_command;
 mod logger;
 mod reminder_command;
 mod social_command;
 mod tech_command;
 mod tool_command;
 
-use anyhow::{Context, Ok, bail};
+use anyhow::Ok;
 use clap::Parser;
-use serde_json::json;
 
 #[derive(Debug, clap::Subcommand)]
 pub enum Command {
-    #[clap(about = "See the weather in your area")]
-    Weather {
-        postal_code: String,
-        complete: bool,
-    },
-
     #[clap(about = "Commands related to technical subjects")]
     Technical(tech_command::TechArgs),
 
@@ -25,8 +19,12 @@ pub enum Command {
     #[clap(about = "Commands of a variety")]
     Tool(tool_command::ToolArgs),
 
-    Reminder(reminder_command::ReminderArgs),
     #[clap(about = "Set or get countdowns ")]
+    Reminder(reminder_command::ReminderArgs),
+
+    #[clap(about = "Ge the morning briefing")]
+    GoodMorning(good_morning_command::GoodMorningArgs),
+
     TestNode,
 }
 
@@ -45,37 +43,15 @@ async fn main() -> anyhow::Result<()> {
     let bugle_config = config::read_config_file()?;
 
     match app.command {
-        Command::Weather {
-            postal_code,
-            complete,
-        } => {
-            if let Some(weather_config) = bugle_config.weather {
-                let res =
-                    weather::get_realtime_weather(&weather_config.api_key, &postal_code).await?;
-                if complete {
-                    let out = serde_json::to_string_pretty(&res)
-                        .with_context(|| "Failed to convert weather response")?;
-                    serde_json::to_writer_pretty(std::io::stdout(), &out)?;
-                } else {
-                    let out = json!({
-                        "location": &res.location.name,
-                        "time": &res.data.time,
-                        "temperature": &res.data.values.temperature,
-                        "feels_like": &res.data.values.temperature_apparent
-                    });
-                    serde_json::to_writer_pretty(std::io::stdout(), &out)?;
-                }
-                Ok(())
-            } else {
-                bail!("Config.weather must be populated")
-            }
-        }
-
         Command::Social(args) => social_command::handle_social_command(args, bugle_config).await,
 
-        Command::Technical(args) => tech_command::handle_tech_command(args).await,
+        Command::Technical(args) => tech_command::handle_tech_command(args, bugle_config).await,
 
         Command::Reminder(args) => reminder_command::handle_reminder_command(args).await,
+
+        Command::GoodMorning(args) => {
+            good_morning_command::handle_good_morning_command(args, bugle_config).await
+        }
 
         Command::Tool(tool_args) => {
             tool_command::handle_tool_command(
