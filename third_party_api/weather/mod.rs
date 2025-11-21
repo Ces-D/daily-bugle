@@ -7,8 +7,7 @@ use reqwest::{
     StatusCode,
     header::{ACCEPT, ACCEPT_ENCODING},
 };
-use std::io::Read;
-use std::str::FromStr;
+use std::{io::Read, str::FromStr};
 
 const WEATHER_API: &str = "https://api.tomorrow.io/v4/";
 
