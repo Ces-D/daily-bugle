@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand, ValueEnum};
 use log::{info, trace};
+use web_scraper::time_out;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum TimeOutTimePeriod {
@@ -35,32 +36,20 @@ pub async fn handle_social_command(
         SocialCommand::Timeout { period } => {
             let out = match period {
                 TimeOutTimePeriod::Today => {
-                    web_scraper::time_out::scrape_things_to_do(
-                        web_scraper::time_out::ThingsToDoCycle::Today,
-                    )
-                    .await?
+                    time_out::scrape_things_to_do(time_out::ThingsToDoCycle::Today).await?
                 }
                 TimeOutTimePeriod::Week => {
-                    web_scraper::time_out::scrape_things_to_do(
-                        web_scraper::time_out::ThingsToDoCycle::Week,
-                    )
-                    .await?
+                    time_out::scrape_things_to_do(time_out::ThingsToDoCycle::Week).await?
                 }
                 TimeOutTimePeriod::Weekend => {
-                    web_scraper::time_out::scrape_things_to_do(
-                        web_scraper::time_out::ThingsToDoCycle::Weekend,
-                    )
-                    .await?
+                    time_out::scrape_things_to_do(time_out::ThingsToDoCycle::Weekend).await?
                 }
                 TimeOutTimePeriod::Month => {
-                    web_scraper::time_out::scrape_things_to_do(
-                        web_scraper::time_out::ThingsToDoCycle::Month,
-                    )
-                    .await?
+                    time_out::scrape_things_to_do(time_out::ThingsToDoCycle::Month).await?
                 }
             };
             info!("Success scraping: {} results", out.len());
-            for item in out.articles().iter() {
+            for _ in out.articles().iter() {
                 todo!(
                     "This should add each article content to an embedder and then get pushed to the db"
                 )
