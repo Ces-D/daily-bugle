@@ -121,7 +121,7 @@ pub async fn scrape_imperva_application_security_sitemap() -> Result<ScrapedEngi
             let reader = Reader::from_str(&res);
             let handler = ImpervaSitemap::default();
             let items = parse_xml_with(reader, handler)?;
-            let storage_key = StorageKey::new(&cache_constant, None, Some(10));
+            let storage_key = StorageKey::new(&cache_constant, None, Some(10 * 24));
             local_storage::write_item_to_storage(storage_key, &items).await;
             Ok(items)
         }
@@ -137,7 +137,7 @@ pub async fn scrape_imperva_availability_sitemap() -> Result<ScrapedEngineeringI
             let reader = Reader::from_str(&res);
             let handler = ImpervaSitemap::default();
             let items = parse_xml_with(reader, handler)?;
-            let storage_key = StorageKey::new(&cache_constant, None, Some(10));
+            let storage_key = StorageKey::new(&cache_constant, None, Some(10 * 24));
             local_storage::write_item_to_storage(storage_key, &items).await;
             Ok(items)
         }
@@ -153,7 +153,7 @@ pub async fn scrape_imperva_data_security_sitemap() -> Result<ScrapedEngineering
             let reader = Reader::from_str(&res);
             let handler = ImpervaSitemap::default();
             let items = parse_xml_with(reader, handler)?;
-            let storage_key = StorageKey::new(&cache_constant, None, Some(10));
+            let storage_key = StorageKey::new(&cache_constant, None, Some(10 * 24));
             local_storage::write_item_to_storage(storage_key, &items).await;
             Ok(items)
         }
@@ -169,7 +169,7 @@ pub async fn scrape_imperva_ddos_sitemap() -> Result<ScrapedEngineeringItems> {
             let reader = Reader::from_str(&res);
             let handler = ImpervaSitemap::default();
             let items = parse_xml_with(reader, handler)?;
-            let storage_key = StorageKey::new(&cache_constant, None, Some(10));
+            let storage_key = StorageKey::new(&cache_constant, None, Some(10 * 24));
             local_storage::write_item_to_storage(storage_key, &items).await;
             Ok(items)
         }
@@ -185,7 +185,7 @@ pub async fn scrape_imperva_performance_sitemap() -> Result<ScrapedEngineeringIt
             let reader = Reader::from_str(&res);
             let handler = ImpervaSitemap::default();
             let items = parse_xml_with(reader, handler)?;
-            let storage_key = StorageKey::new(&cache_constant, None, Some(10));
+            let storage_key = StorageKey::new(&cache_constant, None, Some(10 * 24));
             local_storage::write_item_to_storage(storage_key, &items).await;
             Ok(items)
         }

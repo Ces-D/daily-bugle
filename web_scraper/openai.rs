@@ -78,7 +78,7 @@ pub async fn scrape_openai_sitemap() -> Result<ScrapedEngineeringItems> {
             let reader = Reader::from_str(&res);
             let handler = OpenAISitemap::default();
             let items = parse_xml_with(reader, handler)?;
-            let storage_key = StorageKey::new(OPENAI_SITEMAP_STORAGE_CONSTANT, None, Some(7));
+            let storage_key = StorageKey::new(OPENAI_SITEMAP_STORAGE_CONSTANT, None, Some(7 * 24));
             local_storage::write_item_to_storage(storage_key, &items).await;
             Ok(items)
         }

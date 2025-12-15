@@ -86,7 +86,7 @@ pub async fn scrape_lucumr_atom_feed() -> Result<ScrapedEngineeringItems> {
             let reader = Reader::from_str(&xml);
             let handler = AtomFeed::default();
             let items = parse_xml_with(reader, handler)?;
-            let storage_key = StorageKey::new(ARMIN_RONACHER_STORAGE_CONSTANT, None, Some(7));
+            let storage_key = StorageKey::new(ARMIN_RONACHER_STORAGE_CONSTANT, None, Some(7 * 24));
             local_storage::write_item_to_storage(storage_key, &items).await;
             Ok(items)
         }
