@@ -80,7 +80,7 @@ pub async fn scrape_google_developer_blogs_sitemap() -> Result<ScrapedEngineerin
             let handler = GoogleDevelopersSitemap::default();
             let items = parse_xml_with(reader, handler)?;
             let storage_key =
-                StorageKey::new(GOOGLE_DEVELOPER_BLOGS_STORAGE_CONSTANT, None, Some(10));
+                StorageKey::new(GOOGLE_DEVELOPER_BLOGS_STORAGE_CONSTANT, None, Some(10 * 24));
             local_storage::write_item_to_storage(storage_key, &items).await;
             Ok(items)
         }

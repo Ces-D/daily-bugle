@@ -48,7 +48,7 @@ pub async fn scrape_figma_engineering_blog() -> Result<ScrapedEngineeringItems> 
                 };
             }
             let storage_key =
-                StorageKey::new(FIGMA_ENGINEERING_BLOG_STORAGE_CONSTANT, None, Some(14));
+                StorageKey::new(FIGMA_ENGINEERING_BLOG_STORAGE_CONSTANT, None, Some(14 * 24));
             local_storage::write_item_to_storage(storage_key, &entries).await;
             Ok(entries)
         }

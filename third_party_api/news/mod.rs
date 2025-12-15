@@ -1,12 +1,14 @@
 pub mod request_response;
 
-use crate::IntoUrl;
+use crate::{IntoUrl, request_url};
 use anyhow::{Context, Result, bail};
+use local_storage::key::StorageKey;
 use log::trace;
-use reqwest::header::USER_AGENT;
+use reqwest::header::{HeaderMap, HeaderValue, USER_AGENT};
 use std::str::FromStr;
 
 const NEWS_URL: &str = "https://newsapi.org/v2/";
+const NEWS_TOP_HEADLINES_STORAGE_CONSTANT: &str = "news_top_headlines";
 
 #[derive(Debug, Default)]
 pub struct HeadlineSourceUrl {
@@ -122,20 +124,22 @@ impl IntoUrl for TopHeadlinesUrl {
 }
 
 pub async fn top_headlines(url: TopHeadlinesUrl) -> Result<request_response::ResponseTopHeadlines> {
-    let client = reqwest::Client::new();
-    let res = client
-        .get(url.into_url())
-        .header(USER_AGENT, get_random_agent())
-        .send()
-        .await
-        .with_context(|| "Failed to get top headlines")?;
-    if res.status() == reqwest::StatusCode::OK {
-        match res.json::<request_response::ResponseTopHeadlines>().await {
-            Ok(body) => Ok(body),
-            Err(e) => bail!("Failed to parse top headlines response body: {}", e),
+    match local_storage::find_stored_item(NEWS_TOP_HEADLINES_STORAGE_CONSTANT).await {
+        Some(body) => Ok(body),
+        None => {
+            let mut headers = HeaderMap::new();
+            headers.insert(
+                USER_AGENT,
+                HeaderValue::from_str(&get_random_agent()).unwrap(),
+            );
+            let res = request_url::<request_response::ResponseTopHeadlines>(
+                url.into_url().as_str(),
+                Some(headers),
+            )
+            .await?;
+            let storage_key = StorageKey::new(NEWS_TOP_HEADLINES_STORAGE_CONSTANT, None, Some(2));
+            local_storage::write_item_to_storage(storage_key, &res).await;
+            Ok(res)
         }
-    } else {
-        let error_body = res.text().await.unwrap_or_else(|_| "".to_string());
-        bail!("Error requesting top headlines: Status {}", error_body)
     }
 }

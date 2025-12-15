@@ -49,7 +49,8 @@ pub async fn scrape_hackernews_news(page: Option<Page>) -> Result<ScrapedEnginee
                     ..Default::default()
                 });
             }
-            let storage_key = StorageKey::new(HACKER_NEWS_NEWS_STORAGE_CONSTANT, None, Some(1));
+            let storage_key =
+                StorageKey::new(HACKER_NEWS_NEWS_STORAGE_CONSTANT, None, Some(1 * 24));
             local_storage::write_item_to_storage(storage_key, &entries).await;
             Ok(entries)
         }
@@ -78,7 +79,8 @@ pub async fn scrape_hackernews_jobs(page: Option<Page>) -> Result<ScrapedEnginee
                     ..Default::default()
                 });
             }
-            let storage_key = StorageKey::new(HACKER_NEWS_JOBS_STORAGE_CONSTANT, None, Some(1));
+            let storage_key =
+                StorageKey::new(HACKER_NEWS_JOBS_STORAGE_CONSTANT, None, Some(1 * 24));
             local_storage::write_item_to_storage(storage_key, &entries).await;
             Ok(entries)
         }

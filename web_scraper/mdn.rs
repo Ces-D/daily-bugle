@@ -90,7 +90,7 @@ pub async fn scrape_mdn_sitemap() -> Result<ScrapedEngineeringItems> {
             let reader = Reader::from_str(&res);
             let handler = MDNSitemap::default();
             let items = parse_xml_with(reader, handler)?;
-            let storage_key = StorageKey::new(MDN_SITEMAP_STORAGE_CONSTANT, None, Some(10));
+            let storage_key = StorageKey::new(MDN_SITEMAP_STORAGE_CONSTANT, None, Some(10 * 24));
             local_storage::write_item_to_storage(storage_key, &items).await;
             Ok(items)
         }

@@ -13,13 +13,13 @@ impl StorageKey {
     pub fn new(
         constant: &str,
         issued_at: Option<DateTime<Utc>>,
-        lifetime_days: Option<i64>,
+        lifetime_hours: Option<i64>,
     ) -> Self {
         let now = match issued_at {
             Some(n) => n,
             None => Utc::now(),
         };
-        let expires = now + Duration::days(lifetime_days.unwrap_or(3));
+        let expires = now + Duration::days(lifetime_hours.unwrap_or(3 * 24));
         Self {
             constant: sanitize(constant),
             expires_on: expires,

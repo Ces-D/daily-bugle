@@ -34,9 +34,9 @@ impl Display for ThingsToDoCycle {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct ArticleContent {
-    title: String,
+    pub title: String,
     tags: Vec<String>,
-    content: String,
+    pub content: String,
     links: Vec<String>,
 }
 
@@ -239,7 +239,7 @@ fn timeout_variants_storage_key(
             } else {
                 Some(article_time.to_utc())
             };
-            (issued_at, Some(1))
+            (issued_at, Some(1 * 24))
         }
         ThingsToDoCycle::Week => {
             let article_week = week_of_month(
@@ -257,7 +257,7 @@ fn timeout_variants_storage_key(
             } else {
                 Some(article_time.to_utc())
             };
-            (issued_at, Some(7))
+            (issued_at, Some(7 * 24))
         }
         ThingsToDoCycle::Weekend => {
             let article_weekend = weekend_number_or_last(article_time.to_utc());
@@ -273,12 +273,12 @@ fn timeout_variants_storage_key(
             if article_time.month() < chrono::Utc::now().day() {
                 (
                     Some(chrono::Utc::now()),
-                    Some(days_until_next_month(chrono::Utc::now())),
+                    Some(days_until_next_month(chrono::Utc::now()) * 24),
                 )
             } else {
                 (
                     Some(article_time.to_utc()),
-                    Some(days_until_next_month(article_time.to_utc())),
+                    Some(days_until_next_month(article_time.to_utc()) * 24),
                 )
             }
         }
