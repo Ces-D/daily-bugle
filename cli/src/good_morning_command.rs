@@ -53,19 +53,20 @@ struct GoodMorningDisplay<'a> {
 impl<'a> Display for GoodMorningDisplay<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut out = String::from("Good Morning");
-        out.push_str(&format!("\n{}", self.weather_report));
+        out.push_str(&format!("\n{}\n", self.weather_report));
         out.push_str(&format!(
-            "\nNYC Events\n{:?}",
+            "\nNYC Events\n{:?}\n",
             serde_json::to_string_pretty(
                 &self
                     .social
                     .iter()
-                    .map(|v| v.title.clone())
+                    .map(|v| v.title.clone().replace('\u{a0}', " ").replace('\n', ""))
                     .collect::<Vec<String>>()
             )
+            .unwrap()
         ));
         out.push_str(&format!(
-            "\nTop Headlines\n{:?}",
+            "\nTop Headlines\n{:?}\n",
             serde_json::to_string_pretty(&self.news)
         ));
         write!(f, "{}", out)
