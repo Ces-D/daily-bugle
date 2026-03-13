@@ -1,8 +1,6 @@
 use crate::{
-    ScrapedEngineeringItem, ScrapedEngineeringItems,
-    constant::{
-        GITHUB_BLOG_SITEMAP_URL, GITHUB_BLOG_STORAGE_CONSTANT, GOOGLE_DEVELOPER_BLOGS_SITEMAP_URL,
-    },
+    ScrapedEngineeringItems,
+    constant::{GITHUB_BLOG_SITEMAP_URL, GITHUB_BLOG_STORAGE_CONSTANT},
     xml::{CommonXMLHandler, parse_xml_with, request_url_document_text},
 };
 use anyhow::Result;
@@ -13,7 +11,7 @@ pub async fn scrape_github_blog_sitemap() -> Result<ScrapedEngineeringItems> {
     match local_storage::find_stored_item(GITHUB_BLOG_STORAGE_CONSTANT).await {
         Some(i) => Ok(i),
         None => {
-            let res = request_url_document_text(GOOGLE_DEVELOPER_BLOGS_SITEMAP_URL, None).await?;
+            let res = request_url_document_text(GITHUB_BLOG_SITEMAP_URL, None).await?;
             let reader = Reader::from_str(&res);
             let items = parse_xml_with(reader, CommonXMLHandler::default())?;
             let storage_key = StorageKey::new(GITHUB_BLOG_STORAGE_CONSTANT, None, Some(10 * 24));

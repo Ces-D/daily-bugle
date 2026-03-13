@@ -87,6 +87,7 @@ pub const IMPERVA_LEARN_PERFORMANCE_SITEMAP_URL: &str =
 
 // Netflix Tech Blog
 pub const NETFLIX_TECH_BLOG_SITEMAP_URL: &str = "https://netflixtechblog.com/sitemap/sitemap.xml";
+pub const NETFLIX_TECH_BLOG_STORAGE_CONSTANT: &str = "netflix_tech_blog";
 
 // Github Blog
 pub const GITHUB_BLOG_SITEMAP_URL: &str = "https://github.blog/post-sitemap4.xml";
@@ -95,22 +96,27 @@ pub const GITHUB_BLOG_STORAGE_CONSTANT: &str = "gihub_blog";
 // Medium Engineering Blog
 pub const MEDIUM_ENGINEERING_BLOG_SITEMAP_URL: &str =
     "https://medium.engineering/sitemap/sitemap.xml";
+pub const MEDIUM_ENGINEERING_BLOG_STORAGE_CONSTANT: &str = "medium_engineering_blog";
 
 // NyTimes Open Blog
 pub const NYTIMES_OPEN_BLOG_SITEMAP_URL: &str = "https://open.nytimes.com/sitemap/sitemap.xml";
+pub const NYTIMES_OPEN_BLOG_STORAGE_CONSTANT: &str = "nytimes_open_blog";
 
 // Stripe Engineering Blog
 pub const STRIPE_ENGINEERING_BLOG_SITEMAP_URL: &str = "https://stripe.com/sitemap/partition-5.xml";
+pub const STRIPE_ENGINEERING_BLOG_STORAGE_CONSTANT: &str = "stripe_engineering_blog";
 
 // Square Engineering Blog
 pub const SQUARE_ENGINEERING_BLOG_SITEMAP_URL: &str =
     "https://developer.squareup.com/blog/sitemap-0.xml";
+pub const SQUARE_ENGINEERING_BLOG_STORAGE_CONSTANT: &str = "square_engineering_blog";
 
 // Dan Abramov Blog
 pub const DAN_ABORMOV_BLOG_URL: &str = "https://overreacted.io/";
 
 // Deep Learning - Andrew Ng Blog
 pub const DEEP_LEARNING_SITEMAP_URL: &str = "https://www.deeplearning.ai/sitemap-1.xml";
+pub const DEEP_LEARNING_STORAGE_CONSTANT: &str = "deep_learning";
 
 // Etsy Code as Craft
 pub const ETSY_CODE_AS_CRAFT_URL: &str = "https://www.etsy.com/codeascraft";
