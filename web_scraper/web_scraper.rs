@@ -6,6 +6,7 @@ pub mod hackernews;
 pub mod imperva;
 pub mod lucumr;
 pub mod mdn;
+pub mod github;
 pub mod notion;
 pub mod openai;
 pub mod time_out;

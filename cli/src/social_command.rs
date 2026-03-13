@@ -49,12 +49,12 @@ pub async fn handle_social_command(
                 }
             };
             info!("Success scraping: {} results", out.len());
+            serde_json::to_writer_pretty(std::io::stdout(), &out)?;
             for _ in out.articles().iter() {
                 todo!(
                     "This should add each article content to an embedder and then get pushed to the db"
                 )
             }
-            serde_json::to_writer_pretty(std::io::stdout(), &out)?;
             Ok(())
         }
         SocialCommand::Find { query } => {

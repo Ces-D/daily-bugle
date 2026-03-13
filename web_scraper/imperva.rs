@@ -1,14 +1,13 @@
 use crate::{
-    ScrapedEngineeringItem, ScrapedEngineeringItems,
+    ScrapedEngineeringItems,
     constant::{
         IMPERVA_LEARN_APPLICATION_SECURITY_SITEMAP_URL, IMPERVA_LEARN_AVAILABILITY_SITEMAP_URL,
         IMPERVA_LEARN_DATA_SECURITY_SITEMAP_URL, IMPERVA_LEARN_DDOS_SITEMAP_URL,
         IMPERVA_LEARN_PERFORMANCE_SITEMAP_URL,
     },
-    xml::{XMLHandler, parse_xml_with, request_url_document_text},
+    xml::{CommonXMLHandler, parse_xml_with, request_url_document_text},
 };
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use local_storage::key::StorageKey;
 use log::trace;
 use quick_xml::Reader;
@@ -49,68 +48,6 @@ fn imperva_cache_constant(url: &str) -> String {
     }
 }
 
-#[derive(Default)]
-struct ImpervaSitemap {
-    items: ScrapedEngineeringItems,
-    current_item: Option<ScrapedEngineeringItem>,
-    current_element: String,
-    current_text: String,
-}
-
-impl XMLHandler<ScrapedEngineeringItems> for ImpervaSitemap {
-    fn start(&mut self, name: &[u8]) -> Result<()> {
-        match name {
-            b"url" => {
-                self.current_item = Some(ScrapedEngineeringItem::default());
-            }
-            b"loc" | b"lastmod" => {
-                self.current_element = String::from_utf8_lossy(name.as_ref()).to_string();
-                self.current_text.clear();
-            }
-            _ => {}
-        }
-        Ok(())
-    }
-
-    fn text(&mut self, txt: &str) -> Result<()> {
-        if !self.current_element.is_empty() {
-            self.current_text.push_str(txt.trim());
-        }
-        Ok(())
-    }
-
-    fn end(&mut self, name: &[u8]) -> Result<()> {
-        match name {
-            b"url" => {
-                if let Some(url) = self.current_item.take() {
-                    self.items.push(url);
-                }
-            }
-            b"loc" | b"lastmod" => {
-                if let Some(url) = &mut self.current_item {
-                    match self.current_element.as_str() {
-                        "loc" => url.url = self.current_text.clone(),
-                        "lastmod" => {
-                            let dt = DateTime::parse_from_rfc3339(&self.current_text)?;
-                            let utc_dt = dt.with_timezone(&Utc);
-                            url.updated = Some(utc_dt);
-                        }
-                        _ => {}
-                    }
-                }
-                self.current_element.clear();
-                self.current_text.clear();
-            }
-            _ => {}
-        }
-        Ok(())
-    }
-
-    fn items(self) -> ScrapedEngineeringItems {
-        self.items
-    }
-}
-
 pub async fn scrape_imperva_application_security_sitemap() -> Result<ScrapedEngineeringItems> {
     let cache_constant = imperva_cache_constant(IMPERVA_LEARN_APPLICATION_SECURITY_SITEMAP_URL);
     match local_storage::find_stored_item(&cache_constant).await {
@@ -119,7 +56,7 @@ pub async fn scrape_imperva_application_security_sitemap() -> Result<ScrapedEngi
             let res =
                 request_imperva_sitemap(IMPERVA_LEARN_APPLICATION_SECURITY_SITEMAP_URL).await?;
             let reader = Reader::from_str(&res);
-            let handler = ImpervaSitemap::default();
+            let handler = CommonXMLHandler::default();
             let items = parse_xml_with(reader, handler)?;
             let storage_key = StorageKey::new(&cache_constant, None, Some(10 * 24));
             local_storage::write_item_to_storage(storage_key, &items).await;
@@ -135,7 +72,7 @@ pub async fn scrape_imperva_availability_sitemap() -> Result<ScrapedEngineeringI
         None => {
             let res = request_imperva_sitemap(IMPERVA_LEARN_AVAILABILITY_SITEMAP_URL).await?;
             let reader = Reader::from_str(&res);
-            let handler = ImpervaSitemap::default();
+            let handler = CommonXMLHandler::default();
             let items = parse_xml_with(reader, handler)?;
             let storage_key = StorageKey::new(&cache_constant, None, Some(10 * 24));
             local_storage::write_item_to_storage(storage_key, &items).await;
@@ -151,7 +88,7 @@ pub async fn scrape_imperva_data_security_sitemap() -> Result<ScrapedEngineering
         None => {
             let res = request_imperva_sitemap(IMPERVA_LEARN_DATA_SECURITY_SITEMAP_URL).await?;
             let reader = Reader::from_str(&res);
-            let handler = ImpervaSitemap::default();
+            let handler = CommonXMLHandler::default();
             let items = parse_xml_with(reader, handler)?;
             let storage_key = StorageKey::new(&cache_constant, None, Some(10 * 24));
             local_storage::write_item_to_storage(storage_key, &items).await;
@@ -167,7 +104,7 @@ pub async fn scrape_imperva_ddos_sitemap() -> Result<ScrapedEngineeringItems> {
         None => {
             let res = request_imperva_sitemap(IMPERVA_LEARN_DDOS_SITEMAP_URL).await?;
             let reader = Reader::from_str(&res);
-            let handler = ImpervaSitemap::default();
+            let handler = CommonXMLHandler::default();
             let items = parse_xml_with(reader, handler)?;
             let storage_key = StorageKey::new(&cache_constant, None, Some(10 * 24));
             local_storage::write_item_to_storage(storage_key, &items).await;
@@ -183,7 +120,7 @@ pub async fn scrape_imperva_performance_sitemap() -> Result<ScrapedEngineeringIt
         None => {
             let res = request_imperva_sitemap(IMPERVA_LEARN_PERFORMANCE_SITEMAP_URL).await?;
             let reader = Reader::from_str(&res);
-            let handler = ImpervaSitemap::default();
+            let handler = CommonXMLHandler::default();
             let items = parse_xml_with(reader, handler)?;
             let storage_key = StorageKey::new(&cache_constant, None, Some(10 * 24));
             local_storage::write_item_to_storage(storage_key, &items).await;

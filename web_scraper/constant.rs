@@ -90,6 +90,7 @@ pub const NETFLIX_TECH_BLOG_SITEMAP_URL: &str = "https://netflixtechblog.com/sit
 
 // Github Blog
 pub const GITHUB_BLOG_SITEMAP_URL: &str = "https://github.blog/post-sitemap4.xml";
+pub const GITHUB_BLOG_STORAGE_CONSTANT: &str = "gihub_blog";
 
 // Medium Engineering Blog
 pub const MEDIUM_ENGINEERING_BLOG_SITEMAP_URL: &str =
@@ -116,3 +117,5 @@ pub const ETSY_CODE_AS_CRAFT_URL: &str = "https://www.etsy.com/codeascraft";
 
 // Lea Verou Blog
 pub const LEA_VEROU_BLOG_URL: &str = "https://lea.verou.me/blog/"; // Get years posts by adding /2025
+
+pub const DATA_CAMP_BLOG_URL: &str = "https://www.datacamp.com/blog";

@@ -22,7 +22,6 @@ strum.workspace = true
 
 config.workspace = true
 web_scraper.workspace = true
-reminders.workspace = true
 git.workspace = true
 career.workspace = true
 third_party_api.workspace = true

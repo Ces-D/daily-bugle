@@ -1,6 +1,5 @@
 mod good_morning_command;
 mod logger;
-mod reminder_command;
 mod social_command;
 mod tech_command;
 mod tool_command;
@@ -18,9 +17,6 @@ pub enum Command {
 
     #[clap(about = "Commands of a variety")]
     Tool(tool_command::ToolArgs),
-
-    #[clap(about = "Set or get countdowns ")]
-    Reminder(reminder_command::ReminderArgs),
 
     #[clap(about = "Ge the morning briefing")]
     GoodMorning(good_morning_command::GoodMorningArgs),
@@ -46,8 +42,6 @@ async fn main() -> anyhow::Result<()> {
         Command::Social(args) => social_command::handle_social_command(args, bugle_config).await,
 
         Command::Technical(args) => tech_command::handle_tech_command(args, bugle_config).await,
-
-        Command::Reminder(args) => reminder_command::handle_reminder_command(args).await,
 
         Command::GoodMorning(args) => {
             good_morning_command::handle_good_morning_command(args, bugle_config).await
