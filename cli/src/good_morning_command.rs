@@ -1,8 +1,7 @@
-use std::fmt::Display;
-
 use anyhow::Result;
 use clap::Parser;
 use config::configuration::Config;
+use std::fmt::Display;
 use third_party_api::{
     news::{self, request_response::Article},
     weather,

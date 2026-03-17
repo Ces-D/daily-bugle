@@ -54,9 +54,7 @@ pub fn read_config_file() -> anyhow::Result<configuration::Config> {
     } else {
         bail!(
             "Unable to open config file: {}",
-            location
-                .to_str()
-                .unwrap_or_else(|| "unknown config location")
+            location.to_str().unwrap_or("unknown config location")
         )
     }
 }

@@ -38,7 +38,7 @@ impl Resume {
 /// Formatting Assumptions:
 /// - The 3rd line of the resume is the name -> first 2 are blank lines, often used for formatting
 /// - The headings param is a list of strings that are used to find the relevant sections of the
-/// resume. The order of the headings matches the order of the sections in the resume.
+///   resume. The order of the headings matches the order of the sections in the resume.
 /// - Relevant sections are separated from each other by an empty line.
 ///
 /// WARNING: The parser may not be 100% accurate. It is possible that it will incorrectly identify
@@ -73,11 +73,11 @@ pub fn extract_resume_information(pdf: &PathBuf, headings: Vec<String>) -> Resul
         if is_heading {
             info!("Found heading: {}", line);
             // Save accumulated content to current section before switching
-            if !current_content.is_empty() {
-                if let Some(ref mut section) = current_section {
-                    section.content.push(current_content.clone());
-                    current_content = String::new();
-                }
+            if !current_content.is_empty()
+                && let Some(ref mut section) = current_section
+            {
+                section.content.push(current_content.clone());
+                current_content = String::new();
             }
 
             // Save current section to resume
@@ -98,11 +98,11 @@ pub fn extract_resume_information(pdf: &PathBuf, headings: Vec<String>) -> Resul
         // Handle content lines
         if line.trim().is_empty() {
             // Empty line - push accumulated content to current section
-            if !current_content.is_empty() {
-                if let Some(ref mut section) = current_section {
-                    section.content.push(current_content.clone());
-                    current_content = String::new();
-                }
+            if !current_content.is_empty()
+                && let Some(ref mut section) = current_section
+            {
+                section.content.push(current_content.clone());
+                current_content = String::new();
             }
         } else {
             // Non-empty line - accumulate content
@@ -116,10 +116,10 @@ pub fn extract_resume_information(pdf: &PathBuf, headings: Vec<String>) -> Resul
     }
 
     // Push any remaining content
-    if !current_content.is_empty() {
-        if let Some(ref mut section) = current_section {
-            section.content.push(current_content);
-        }
+    if !current_content.is_empty()
+        && let Some(ref mut section) = current_section
+    {
+        section.content.push(current_content);
     }
 
     // Push final section

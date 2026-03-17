@@ -27,32 +27,11 @@ pub struct Database {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct Resume {
-    /// Path to the user resume
-    #[serde(deserialize_with = "crate::path::deserialize_expanded_path")]
-    pub path: PathBuf,
-    pub headings: Vec<String>,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct Career {
-    /// Resume related config
-    pub resume: Resume,
-    /// Path to the user profile summary
-    #[serde(deserialize_with = "crate::path::deserialize_expanded_path")]
-    pub profile: PathBuf,
-    /// Job description
-    #[serde(deserialize_with = "crate::path::deserialize_expanded_path")]
-    pub job: PathBuf,
-}
-
-#[derive(Serialize, Deserialize)]
 pub struct Config {
     pub weather: Option<Weather>,
     pub news: Option<News>,
     pub google_calendar: Option<GoogleCalender>,
     pub database: Database,
-    pub career: Option<Career>,
 }
 
 impl Default for Config {
@@ -61,7 +40,6 @@ impl Default for Config {
             weather: Default::default(),
             news: Default::default(),
             google_calendar: Default::default(),
-            career: Default::default(),
             database: Database {
                 connection_url: "localhost:8000".to_string(),
             },
@@ -128,47 +106,6 @@ mod tests {
     }
 
     #[test]
-    fn test_deserialize_resume() {
-        let toml_str = r#"
-            path = "~/Documents/resume.pdf"
-            headings = ["Education", "Experience"]
-        "#;
-
-        let resume: Resume = toml::from_str(toml_str).expect("Failed to deserialize");
-        let home = env::var("HOME").expect("HOME env var should be set");
-
-        assert_eq!(
-            resume.path,
-            PathBuf::from(format!("{}/Documents/resume.pdf", home))
-        );
-        assert_eq!(resume.headings, vec!["Education", "Experience"]);
-    }
-
-    #[test]
-    fn test_deserialize_career() {
-        let toml_str = r#"
-            profile = "~/Documents/profile.txt"
-            job = "~/Documents/description.txt"
-
-            [resume]
-            path = "~/Documents/resume.pdf"
-            headings = ["Skills"]
-        "#;
-
-        let career: Career = toml::from_str(toml_str).expect("Failed to deserialize");
-        let home = env::var("HOME").expect("HOME env var should be set");
-
-        assert_eq!(
-            career.profile,
-            PathBuf::from(format!("{}/Documents/profile.txt", home))
-        );
-        assert_eq!(
-            career.resume.path,
-            PathBuf::from(format!("{}/Documents/resume.pdf", home))
-        );
-    }
-
-    #[test]
     fn test_deserialize_google_calendar() {
         let toml_str = r#"
             credentials_file = "~/credentials.json"
@@ -180,46 +117,6 @@ mod tests {
         assert_eq!(
             calendar.credentials_file,
             PathBuf::from(format!("{}/credentials.json", home))
-        );
-    }
-
-    #[test]
-    fn test_deserialize_full_config() {
-        let toml_str = r#"
-            [database]
-            connection_url = "localhost:8000"
-
-            [google_calendar]
-            credentials_file = "~/creds.json"
-
-            [career]
-            profile = "$HOME/profile.txt"
-            job = "~/job.txt"
-
-            [career.resume]
-            path = "~/resume.pdf"
-            headings = ["Education"]
-        "#;
-
-        let config: Config = toml::from_str(toml_str).expect("Failed to deserialize");
-        let home = env::var("HOME").expect("HOME env var should be set");
-
-        assert!(config.google_calendar.is_some());
-        assert_eq!(
-            config.google_calendar.unwrap().credentials_file,
-            PathBuf::from(format!("{}/creds.json", home))
-        );
-
-        assert!(config.career.is_some());
-        let career = config.career.unwrap();
-        assert_eq!(
-            career.profile,
-            PathBuf::from(format!("{}/profile.txt", home))
-        );
-        assert_eq!(career.job, PathBuf::from(format!("{}/job.txt", home)));
-        assert_eq!(
-            career.resume.path,
-            PathBuf::from(format!("{}/resume.pdf", home))
         );
     }
 }

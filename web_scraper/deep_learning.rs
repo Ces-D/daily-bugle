@@ -14,8 +14,7 @@ pub async fn scrape_deep_learning_sitemap() -> Result<ScrapedEngineeringItems> {
             let res = request_url_document_text(DEEP_LEARNING_SITEMAP_URL, None).await?;
             let reader = Reader::from_str(&res);
             let items = parse_xml_with(reader, CommonXMLHandler::default())?;
-            let storage_key =
-                StorageKey::new(DEEP_LEARNING_STORAGE_CONSTANT, None, Some(10 * 24));
+            let storage_key = StorageKey::new(DEEP_LEARNING_STORAGE_CONSTANT, None, Some(10 * 24));
             local_storage::write_item_to_storage(storage_key, &items).await;
             Ok(items)
         }
