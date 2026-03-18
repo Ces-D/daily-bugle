@@ -1,5 +1,6 @@
 use anyhow::{Result, bail};
 use log::{debug, trace};
+use serde::{Serialize, de::DeserializeOwned};
 use std::{
     io::Write,
     process::{Command, Stdio},
@@ -8,12 +9,15 @@ use std::{
 pub mod folder;
 pub mod item;
 
+#[allow(async_fn_in_trait)]
 pub trait CoreCommands: Sized {
-    fn create(&self) -> Result<()>;
+    type ListItem: Serialize + DeserializeOwned;
+
+    async fn create(&self) -> Result<()>;
     fn edit(&self) -> Result<()>;
-    fn list(&self) -> Result<Vec<Self>>;
-    fn delete(&self) -> Result<()>;
-    fn restore(&self) -> Result<()>;
+    async fn list(&self) -> Result<Vec<Self::ListItem>>;
+    async fn delete(&self) -> Result<()>;
+    async fn restore(&self) -> Result<()>;
     fn get(id: String) -> Result<Self>;
 }
 

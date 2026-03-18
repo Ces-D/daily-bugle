@@ -2,12 +2,11 @@ use env_logger::Env;
 use log::warn;
 
 pub fn init_logging() {
-    const MEMBERS: [&str; 7] = [
+    const MEMBERS: [&str; 6] = [
         "cli",
         "config",
         "local_storage",
         "web_scraper",
-        "career",
         "third_party_api",
         "fortress",
     ];

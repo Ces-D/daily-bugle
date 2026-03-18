@@ -1,9 +1,17 @@
 use super::{CoreCommands, bw};
 use anyhow::{Context, Result, bail};
 use chrono::{DateTime, Utc};
+use local_storage::key::StorageKey;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_repr::{Deserialize_repr, Serialize_repr};
+
+fn bw_item_storage_key(constant: Option<String>) -> String {
+    format!(
+        "bw_item_{}_storage_key",
+        constant.unwrap_or("all".to_string())
+    )
+}
 
 #[derive(Serialize, Deserialize, Default, Clone)]
 pub struct Uri {
@@ -91,7 +99,7 @@ pub struct Item {
     pub name: String,
     pub notes: Option<String>,
     pub favorite: bool,
-    pub fields: Vec<String>,
+    pub fields: Vec<Value>,
     pub login: Option<Login>,
     pub secure_note: Option<SecureNote>,
     pub card: Option<Card>,
@@ -159,6 +167,7 @@ impl Item {
         self.identity = None;
         self
     }
+
     /// Signals intent to create an Identity item. Sets the item type to Identity.
     pub fn set_identity(mut self, identity: String) -> Self {
         self.r_type = ItemType::Identity;
@@ -170,8 +179,35 @@ impl Item {
     }
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ItemSummary {
+    pub id: Option<String>,
+    pub name: String,
+    pub notes: Option<String>,
+    #[serde(rename = "type")]
+    pub r_type: ItemType,
+    pub revision_date: Option<DateTime<Utc>>,
+    pub folder_id: Option<String>,
+}
+
+impl From<Item> for ItemSummary {
+    fn from(item: Item) -> Self {
+        Self {
+            id: item.id,
+            name: item.name,
+            notes: item.notes,
+            r_type: item.r_type,
+            revision_date: item.revision_date,
+            folder_id: item.folder_id,
+        }
+    }
+}
+
 impl CoreCommands for Item {
-    fn create(&self) -> Result<()> {
+    type ListItem = ItemSummary;
+
+    async fn create(&self) -> Result<()> {
         if self.id.is_some() {
             bail!(
                 "Cannot create a preexisting item. You can edit the object but cannot create it again."
@@ -179,6 +215,13 @@ impl CoreCommands for Item {
         }
         let _json = serde_json::to_string(&self)?;
         bw(vec!["create", "item"], Some(&_json), true)?;
+
+        if let Some(_) =
+            local_storage::invalidate_stored_item(&bw_item_storage_key(self.folder_id.clone()))
+                .await
+        {
+            log::info!("Invalidated bw item storage");
+        }
         Ok(())
     }
 
@@ -195,22 +238,38 @@ impl CoreCommands for Item {
         Ok(())
     }
 
-    fn list(&self) -> Result<Vec<Self>> {
-        let command = vec![
-            "list",
-            "items",
-            "--folderid",
-            match &self.folder_id {
-                Some(id) => id,
-                None => "null",
-            },
-        ];
-        let res = bw(command, None, false)?;
-        let items: Vec<Self> = serde_json::from_str(&res)?;
-        Ok(items)
+    async fn list(&self) -> Result<Vec<ItemSummary>> {
+        match local_storage::find_stored_item(&bw_item_storage_key(self.folder_id.clone())).await {
+            Some(items) => Ok(items),
+            None => {
+                let command = vec![
+                    "list",
+                    "items",
+                    "--folderid",
+                    match &self.folder_id {
+                        Some(id) => id,
+                        None => "null",
+                    },
+                ];
+                let res = bw(command, None, false)?;
+                let items: Vec<Item> = serde_json::from_str(&res)?;
+                let summaries: Vec<ItemSummary> =
+                    items.into_iter().map(ItemSummary::from).collect();
+                let storage_key = StorageKey::new(
+                    &bw_item_storage_key(self.folder_id.clone()),
+                    None,
+                    Some(10 * 7),
+                );
+                if let Some(_) = local_storage::write_item_to_storage(storage_key, &summaries).await
+                {
+                    log::info!("Writing bw items to cache");
+                }
+                Ok(summaries)
+            }
+        }
     }
 
-    fn delete(&self) -> Result<()> {
+    async fn delete(&self) -> Result<()> {
         if self.id.is_none() {
             bail!("Cannot delete an item without an id. Use create instead.");
         }
@@ -219,10 +278,16 @@ impl CoreCommands for Item {
             None,
             false,
         )?;
+        if let Some(_) =
+            local_storage::invalidate_stored_item(&bw_item_storage_key(self.folder_id.clone()))
+                .await
+        {
+            log::info!("Invalidated bw item storage");
+        }
         Ok(())
     }
 
-    fn restore(&self) -> Result<()> {
+    async fn restore(&self) -> Result<()> {
         if self.id.is_none() {
             bail!("Cannot restore an item without an id. Use create instead.");
         }
@@ -231,6 +296,12 @@ impl CoreCommands for Item {
             None,
             false,
         )?;
+        if let Some(_) =
+            local_storage::invalidate_stored_item(&bw_item_storage_key(self.folder_id.clone()))
+                .await
+        {
+            log::info!("Invalidated bw item storage");
+        }
         Ok(())
     }
 

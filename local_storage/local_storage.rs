@@ -6,7 +6,23 @@ use std::{collections::HashSet, path::PathBuf};
 use tokio::{
     fs,
     io::{AsyncReadExt, AsyncWriteExt, Error, ErrorKind, Result},
+    sync::{OnceCell, RwLock},
 };
+
+static STORAGE: OnceCell<RwLock<LocalStorage>> = OnceCell::const_new();
+
+async fn get_storage() -> std::result::Result<&'static RwLock<LocalStorage>, ()> {
+    STORAGE
+        .get_or_try_init(|| async {
+            LocalStorage::new_async()
+                .await
+                .map(RwLock::new)
+                .map_err(|e| {
+                    error!("Failed to initialize local storage: {:?}", e);
+                })
+        })
+        .await
+}
 
 struct LocalStorage {
     keys: HashSet<StorageKey>,
@@ -25,14 +41,14 @@ impl LocalStorage {
                 if metadata.is_file() {
                     let local_storage_key = StorageKey::from(entry_path.clone());
                     if local_storage_key.is_expired() {
-                        fs::remove_file(entry_path.clone()).await?;
+                        fs::remove_file(&entry_path).await?;
                         warn!("Removed expired storage item: {:?}", entry_path);
                         continue;
                     } else {
                         let inserted = keys.insert(local_storage_key);
                         if !inserted {
                             // Failed equivalence so we should remove
-                            fs::remove_file(entry_path.clone()).await?;
+                            fs::remove_file(&entry_path).await?;
                             warn!("Removed duplicate storage item: {:?}", entry_path);
                         }
                     }
@@ -61,7 +77,7 @@ impl LocalStorage {
             trace!("Not inserting item: {:?}", key);
             Ok(())
         } else {
-            let insert_path = self.storage_loc.clone().join(Into::<PathBuf>::into(key));
+            let insert_path = self.storage_loc.join(Into::<PathBuf>::into(key));
             if insert_path.exists() {
                 error!("Insert path already exists: {:?}", insert_path);
                 return Err(Error::new(
@@ -69,8 +85,11 @@ impl LocalStorage {
                     format!("File  already exists: {:?}", insert_path),
                 ));
             } else {
-                let mut f = fs::File::create(insert_path).await?;
+                let tmp_path = insert_path.with_extension("tmp");
+                let mut f = fs::File::create(&tmp_path).await?;
                 f.write_all(item.as_ref()).await?;
+                f.flush().await?;
+                fs::rename(&tmp_path, &insert_path).await?;
                 self.keys.insert(key.clone());
                 trace!("Inserted item with key {:?}", key);
                 Ok(())
@@ -78,27 +97,28 @@ impl LocalStorage {
         }
     }
 
+    pub async fn remove_item(&mut self, key: &StorageKey) -> Result<()> {
+        if let Some(cache_key) = self.keys.take(key) {
+            let cache_key_path: PathBuf = (&cache_key).into();
+            let item_path = self.storage_loc.join(cache_key_path);
+            fs::remove_file(&item_path).await?;
+            info!("Removed storage item: {:?}", item_path);
+        }
+        Ok(())
+    }
+
     pub async fn get_item(&self, key: &StorageKey) -> Option<Vec<u8>> {
-        if self.contains(key) {
-            if let Some(cache_key) = self.keys.get(key) {
-                // Build full path by joining storage directory with the item key
-                let cache_key_path: PathBuf = cache_key.into();
-                let item_path = self.storage_loc.clone().join(cache_key_path);
-                let mut buf = Vec::new();
-                let mut f = fs::File::open(item_path).await.ok()?;
-                let out = match f.read_to_end(&mut buf).await {
-                    Ok(_) => Some(buf),
-                    Err(e) => {
-                        warn!("Failed to read cache file: {:?}", e);
-                        None
-                    }
-                };
-                out
-            } else {
+        let cache_key = self.keys.get(key)?;
+        let cache_key_path: PathBuf = cache_key.into();
+        let item_path = self.storage_loc.join(cache_key_path);
+        let mut buf = Vec::new();
+        let mut f = fs::File::open(item_path).await.ok()?;
+        match f.read_to_end(&mut buf).await {
+            Ok(_) => Some(buf),
+            Err(e) => {
+                warn!("Failed to read cache file: {:?}", e);
                 None
             }
-        } else {
-            None
         }
     }
 }
@@ -107,7 +127,8 @@ impl LocalStorage {
 pub async fn find_stored_item<T: serde::de::DeserializeOwned>(constant: &str) -> Option<T> {
     trace!("Searching for stored item: {}", constant);
     let storage_key = StorageKey::new(&constant, None, None);
-    let storage = LocalStorage::new_async().await.ok()?;
+    let storage = get_storage().await.ok()?;
+    let storage = storage.read().await;
     if let Some(bytes) = storage.get_item(&storage_key).await {
         info!("Using cached item: {:?}", storage_key);
         serde_json::from_slice::<T>(&bytes).ok()
@@ -116,13 +137,21 @@ pub async fn find_stored_item<T: serde::de::DeserializeOwned>(constant: &str) ->
     }
 }
 
+pub async fn invalidate_stored_item(constant: &str) -> Option<()> {
+    let storage_key = StorageKey::new(&constant, None, None);
+    let storage = get_storage().await.ok()?;
+    let mut storage = storage.write().await;
+    storage.remove_item(&storage_key).await.ok()
+}
+
 /// Write an item to storage. Helper function since implementation is always same.
 pub async fn write_item_to_storage<T: serde::Serialize>(
     storage_key: StorageKey,
     item: &T,
 ) -> Option<()> {
     trace!("Writing item to storage: {}", storage_key.constant);
-    let mut storage = LocalStorage::new_async().await.ok()?;
+    let storage = get_storage().await.ok()?;
+    let mut storage = storage.write().await;
     match serde_json::to_vec(item) {
         Ok(serialized) => storage.insert_item(&storage_key, serialized).await.ok(),
         Err(e) => {

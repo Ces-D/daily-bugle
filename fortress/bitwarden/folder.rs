@@ -1,6 +1,9 @@
 use super::{CoreCommands, bw};
 use anyhow::{Context, Result, bail};
+use local_storage::key::StorageKey;
 use serde::{Deserialize, Serialize};
+
+const BW_FOLDER_STORAGE_KEY: &str = "bw_folder_storage_key";
 
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -25,7 +28,9 @@ impl Folder {
 }
 
 impl CoreCommands for Folder {
-    fn create(&self) -> Result<()> {
+    type ListItem = Self;
+
+    async fn create(&self) -> Result<()> {
         if self.id.is_some() {
             bail!(
                 "Cannot create a preexisting folder. You can edit the object but cannot create it again."
@@ -33,6 +38,9 @@ impl CoreCommands for Folder {
         }
         let _json = serde_json::to_string(&self)?;
         bw(vec!["create", "folder"], Some(&_json), true)?;
+        if let Some(_) = local_storage::invalidate_stored_item(BW_FOLDER_STORAGE_KEY).await {
+            log::info!("Invalidated bw folder storage");
+        }
         Ok(())
     }
 
@@ -49,13 +57,22 @@ impl CoreCommands for Folder {
         Ok(())
     }
 
-    fn list(&self) -> Result<Vec<Self>> {
-        let res = bw(vec!["list", "folders"], None, false)?;
-        let items: Vec<Self> = serde_json::from_str(&res)?;
-        Ok(items)
+    async fn list(&self) -> Result<Vec<Self>> {
+        match local_storage::find_stored_item(BW_FOLDER_STORAGE_KEY).await {
+            Some(i) => Ok(i),
+            None => {
+                let res = bw(vec!["list", "folders"], None, false)?;
+                let items: Vec<Self> = serde_json::from_str(&res)?;
+                let storage_key = StorageKey::new(BW_FOLDER_STORAGE_KEY, None, Some(10 * 7));
+                if let Some(_) = local_storage::write_item_to_storage(storage_key, &items).await {
+                    log::info!("Writing bw folders to cache");
+                }
+                Ok(items)
+            }
+        }
     }
 
-    fn delete(&self) -> Result<()> {
+    async fn delete(&self) -> Result<()> {
         if self.id.is_none() {
             bail!("Cannot delete a folder without an id. Use create instead.");
         }
@@ -64,14 +81,20 @@ impl CoreCommands for Folder {
             None,
             false,
         )?;
+        if let Some(_) = local_storage::invalidate_stored_item(BW_FOLDER_STORAGE_KEY).await {
+            log::info!("Invalidated bw folder storage");
+        }
         Ok(())
     }
 
-    fn restore(&self) -> Result<()> {
+    async fn restore(&self) -> Result<()> {
         if self.id.is_none() {
             bail!("Cannot restore a folder without an id. Use create instead.");
         }
         bw(vec!["restore", &self.id.clone().unwrap()], None, false)?;
+        if let Some(_) = local_storage::invalidate_stored_item(BW_FOLDER_STORAGE_KEY).await {
+            log::info!("Invalidated bw folder storage");
+        }
         Ok(())
     }
 

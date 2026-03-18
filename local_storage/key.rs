@@ -19,7 +19,7 @@ impl StorageKey {
             Some(n) => n,
             None => Utc::now(),
         };
-        let expires = now + Duration::days(lifetime_hours.unwrap_or(3 * 24));
+        let expires = now + Duration::hours(lifetime_hours.unwrap_or(3 * 24));
         Self {
             constant: sanitize(constant),
             expires_on: expires,

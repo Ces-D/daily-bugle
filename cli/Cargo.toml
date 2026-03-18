@@ -23,6 +23,5 @@ strum.workspace = true
 config.workspace = true
 web_scraper.workspace = true
 git.workspace = true
-career.workspace = true
 third_party_api.workspace = true
 fortress.workspace = true

@@ -111,7 +111,7 @@ pub async fn handle_fortress_command(args: FortressArgs) -> Result<()> {
             if let Some(id) = folder_id {
                 item = item.set_folder_id(id);
             }
-            item.create()?;
+            item.create().await?;
         }
         FortressCommand::CreateSecureNote {
             name,
@@ -122,18 +122,18 @@ pub async fn handle_fortress_command(args: FortressArgs) -> Result<()> {
             if let Some(id) = folder_id {
                 item = item.set_folder_id(id);
             }
-            item.create()?;
+            item.create().await?;
         }
         FortressCommand::CreateFolder { name } => {
             let folder = Folder::new(name);
-            folder.create()?;
+            folder.create().await?;
         }
         FortressCommand::ListItems { folder_id } => {
             let mut item = Item::new(String::new(), String::new());
             if let Some(id) = folder_id {
                 item = item.set_folder_id(id);
             }
-            let items = item.list()?;
+            let items = item.list().await?;
             for i in items {
                 println!("{}", serde_json::to_string_pretty(&i)?);
             }
@@ -166,11 +166,11 @@ pub async fn handle_fortress_command(args: FortressArgs) -> Result<()> {
         }
         FortressCommand::DeleteItem { id } => {
             let item = Item::get(id)?;
-            item.delete()?;
+            item.delete().await?;
         }
         FortressCommand::RestoreItem { id } => {
             let item = Item::get(id)?;
-            item.restore()?;
+            item.restore().await?;
         }
         FortressCommand::GetItem { id } => {
             let item = Item::get(id)?;
@@ -182,15 +182,15 @@ pub async fn handle_fortress_command(args: FortressArgs) -> Result<()> {
         }
         FortressCommand::DeleteFolder { id } => {
             let folder = Folder::get(id)?;
-            folder.delete()?;
+            folder.delete().await?;
         }
         FortressCommand::RestoreFolder { id } => {
             let folder = Folder::get(id)?;
-            folder.restore()?;
+            folder.restore().await?;
         }
         FortressCommand::ListFolders => {
             let folder = Folder::new(String::new());
-            let folders = folder.list()?;
+            let folders = folder.list().await?;
             for f in folders {
                 println!("{}", serde_json::to_string_pretty(&f)?);
             }
