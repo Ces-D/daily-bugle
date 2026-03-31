@@ -30,17 +30,11 @@ async fn main() -> anyhow::Result<()> {
     logger::init_logging();
 
     let app = App::parse();
-    let bugle_config = config::read_config_file()?;
 
     match app.command {
-        Command::Social(args) => social_command::handle_social_command(args, bugle_config).await,
-
-        Command::Technical(args) => tech_command::handle_tech_command(args, bugle_config).await,
-
-        Command::GoodMorning(args) => {
-            good_morning_command::handle_good_morning_command(args, bugle_config).await
-        }
-
+        Command::Social(args) => social_command::handle_social_command(args).await,
+        Command::Technical(args) => tech_command::handle_tech_command(args).await,
+        Command::GoodMorning(args) => good_morning_command::handle_good_morning_command(args).await,
         Command::Fortress(args) => fortress_command::handle_fortress_command(args).await,
     }
 }

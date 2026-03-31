@@ -1,9 +1,8 @@
-pub mod configuration;
-mod path;
-
 use anyhow::{Context, bail};
 use log::info;
 use std::path::PathBuf;
+
+mod model;
 
 const DAILY_BUGLE_CONFIG_VAR: &str = "DAILY_BUGLE_CONFIG";
 const CONFIG_DIR: &str = "daily_bugle";
@@ -43,12 +42,16 @@ pub fn local_storage_dir_location() -> PathBuf {
     path.join(".local").join("state").join(CONFIG_DIR)
 }
 
-pub fn read_config_file() -> anyhow::Result<configuration::Config> {
+pub fn memories_storage_dir_location() -> PathBuf {
+    local_storage_dir_location().join("memories")
+}
+
+pub fn read_config_file() -> anyhow::Result<model::Config> {
     let location = config_location()?.join(CONFIG_FILE);
     if location.exists() && location.is_file() {
         let content =
             std::fs::read_to_string(location).with_context(|| "Failed to read config file")?;
-        let config = toml::from_str::<configuration::Config>(&content)
+        let config = toml::from_str::<model::Config>(&content)
             .with_context(|| "Invalid toml in config file")?;
         Ok(config)
     } else {

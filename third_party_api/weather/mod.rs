@@ -1,92 +1,313 @@
-pub mod request_response;
+mod openmeteo;
 
-use crate::{
-    IntoUrl, developer_message, make_chat_completion_request, request_url, system_message,
-};
-use anyhow::{Context, Result};
-use async_openai::types::CreateChatCompletionRequestArgs;
-use local_storage::key::StorageKey;
+use anyhow::Result;
+use chrono::{DateTime, Utc};
 use log::trace;
-use reqwest::header::{ACCEPT, ACCEPT_ENCODING, HeaderMap, HeaderValue};
-use std::str::FromStr;
+use std::collections::BTreeMap;
+use strum_macros::{Display, EnumString};
 
-const REALTIME_WEATHER_API_STORAGE_CONSTANT: &str = "tomorrowIO_realtime_weather";
-const WEATHER_API: &str = "https://api.tomorrow.io/v4/";
+pub use openmeteo::{
+    CurrentField, DailyField, HourlyField, Temperature, WeatherForecast, WeatherForecastBuilder,
+    WmoWeatherCode,
+};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Display, EnumString)]
+#[strum(serialize_all = "lowercase")]
+pub enum SupportedMode {
+    Current,
+    Daily,
+    Hourly,
+}
+
+pub struct WeatherForecastToolInputs {
+    pub latitude: f64,
+    pub longitude: f64,
+    pub mode: SupportedMode,
+}
 
 #[derive(Debug, Default)]
-pub struct RealtimeWeatherApiUrl {
-    pub api_key: String,
-    pub postal_code: String,
-    pub units: Option<String>,
+pub struct WeatherForecastEntry {
+    pub weather: String,
+    pub sunrise: Option<String>,
+    pub sunset: Option<String>,
+    pub temperature_f: Option<String>,
+    pub temperature_f_min: Option<String>,
+    pub temperature_f_max: Option<String>,
 }
 
-impl IntoUrl for RealtimeWeatherApiUrl {
-    fn into_url(self) -> url::Url {
-        let mut url = url::Url::from_str(WEATHER_API).unwrap();
-        url = url
-            .join("weather/realtime")
-            .expect("Failed to join weather url");
-        url.query_pairs_mut()
-            .append_pair("apikey", &self.api_key)
-            .append_pair("location", &self.postal_code)
-            .append_pair(
-                "units",
-                self.units
-                    .unwrap_or_else(|| "imperial".to_string())
-                    .as_str(),
-            );
-        trace!("Weather Realtime url: {:?}", url.to_string());
-        url
-    }
-}
+pub type WeatherForecastToolResponse = BTreeMap<DateTime<Utc>, WeatherForecastEntry>;
 
-/// see - https://docs.tomorrow.io/reference/realtime-weather
-pub async fn get_realtime_weather(
-    url: RealtimeWeatherApiUrl,
-) -> Result<request_response::RealtimeWeather> {
-    match local_storage::find_stored_item(REALTIME_WEATHER_API_STORAGE_CONSTANT).await {
-        Some(i) => Ok(i),
-        None => {
-            let mut headers = HeaderMap::new();
-            headers.insert(ACCEPT, HeaderValue::from_str("application/json").unwrap());
-            headers.insert(
-                ACCEPT_ENCODING,
-                HeaderValue::from_str("deflate, gzip, br").unwrap(),
+pub async fn weather_forecast_tool(
+    inputs: WeatherForecastToolInputs,
+) -> Result<WeatherForecastToolResponse> {
+    trace!("Calling weather forecast tool.");
+
+    let builder = match inputs.mode {
+        SupportedMode::Current => WeatherForecastBuilder::new(inputs.latitude, inputs.longitude)
+            .current([CurrentField::Temperature, CurrentField::WeatherCode]),
+        SupportedMode::Daily => WeatherForecastBuilder::new(inputs.latitude, inputs.longitude)
+            .daily([
+                DailyField::WeatherCode,
+                DailyField::Sunrise,
+                DailyField::Sunset,
+                DailyField::TemperatureMin,
+                DailyField::TemperatureMax,
+            ]),
+        SupportedMode::Hourly => WeatherForecastBuilder::new(inputs.latitude, inputs.longitude)
+            .hourly([HourlyField::Temperature, HourlyField::WeatherCode]),
+    };
+
+    let forecast = builder.send().await?;
+    let mut data = WeatherForecastToolResponse::new();
+
+    match inputs.mode {
+        SupportedMode::Current => {
+            data.insert(
+                forecast.current_time()?,
+                WeatherForecastEntry {
+                    temperature_f: Some(forecast.current_temperature()?.as_fahrenheit()),
+                    weather: forecast.current_weather_code()?.description().to_string(),
+                    ..Default::default()
+                },
             );
-            let res = request_url::<request_response::RealtimeWeather>(
-                url.into_url().as_str(),
-                Some(headers),
-            )
-            .await?;
-            let storage_key = StorageKey::new(REALTIME_WEATHER_API_STORAGE_CONSTANT, None, Some(2));
-            local_storage::write_item_to_storage(storage_key, &res).await;
-            Ok(res)
+        }
+        SupportedMode::Daily => {
+            let daily_weather_codes = forecast.daily_weather_codes()?;
+            let daily_sunrise = forecast.daily_sunrise()?;
+            let daily_sunset = forecast.daily_sunset()?;
+            let temperature_min = forecast.daily_temperature_min()?;
+            let temperature_max = forecast.daily_temperature_max()?;
+
+            for (i, (day, weather_code)) in daily_weather_codes.iter().enumerate() {
+                data.insert(
+                    *day,
+                    WeatherForecastEntry {
+                        weather: weather_code.description().to_string(),
+                        sunrise: daily_sunrise.get(i).map(|dt| dt.to_rfc3339()),
+                        sunset: daily_sunset.get(i).map(|dt| dt.to_rfc3339()),
+                        temperature_f_min: temperature_min.get(i).map(|t| t.as_fahrenheit()),
+                        temperature_f_max: temperature_max.get(i).map(|t| t.as_fahrenheit()),
+                        ..Default::default()
+                    },
+                );
+            }
+        }
+        SupportedMode::Hourly => {
+            let hourly_weather_codes = forecast.hourly_weather_codes()?;
+            let hourly_temperatures = forecast.hourly_temperatures()?;
+
+            for (i, (time, weather_code)) in hourly_weather_codes.iter().enumerate() {
+                data.insert(
+                    *time,
+                    WeatherForecastEntry {
+                        weather: weather_code.description().to_string(),
+                        temperature_f: hourly_temperatures.get(i).map(|t| t.as_fahrenheit()),
+                        ..Default::default()
+                    },
+                );
+            }
         }
     }
+
+    Ok(data)
 }
 
-const SUMMARIZE_WEATHER_PROMPT:&str="You are a Weather Report Generator. You will receive a JSON object containing: data.time (an ISO timestamp), data.values (raw weather measurements), and location (latitude, longitude, and a human-readable location name). Your job is to transform this input into a clear, concise, human-friendly current weather report.
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-Begin with a one-sentence summary describing the overall weather (temperature and general conditions). Present the report in short sections with the following information when available: Temperature (actual and apparent in °C), Sky conditions (interpret cloudCover 0–100% as clear, mostly clear, partly cloudy, or overcast), Weather code (convert into plain-language description, e.g., 1001 = overcast), Wind (speed in m/s and km/h, plus direction as a compass direction), Precipitation (summarize rain, snow, sleet, freezing rain; if all intensities are zero, say “no precipitation”; include precipitation probability), Visibility in kilometers, Humidity percentage, Pressure in millibars with a note if it is generally low, normal, or high, and UV Index with health concern level.
+    /// New York City coordinates
+    const NYC_LAT: f64 = 40.7128;
+    const NYC_LON: f64 = -74.0060;
 
-If any value is missing, omit it. Tone must be neutral, clear, and readable, avoiding jargon. Output text only.
+    fn inputs(mode: SupportedMode) -> WeatherForecastToolInputs {
+        WeatherForecastToolInputs {
+            latitude: NYC_LAT,
+            longitude: NYC_LON,
+            mode,
+        }
+    }
 
-Cloud cover interpretation rules: 0–10% = clear; 10–40% = mostly clear; 40–70% = partly cloudy; 70–100% = overcast. Precipitation rules: if all intensities are zero, state no precipitation; if probability is 0, state no expected precipitation.
+    #[tokio::test]
+    async fn current_mode_returns_single_entry_with_temperature_and_weather() {
+        let data = weather_forecast_tool(inputs(SupportedMode::Current))
+            .await
+            .expect("current forecast failed");
 
-Output format: “Current Weather in <location_name> (as of <local_time>):” followed by the summary sentence and sections for Temperature, Sky, Wind, Precipitation, Visibility, Humidity, Pressure, and UV Index.";
+        assert_eq!(
+            data.len(),
+            1,
+            "Current mode should return exactly one entry"
+        );
 
-pub async fn summarize_weather(
-    response: request_response::RealtimeWeather,
-    model: &str,
-) -> Result<String> {
-    let request = CreateChatCompletionRequestArgs::default()
-        .messages(vec![
-            system_message(SUMMARIZE_WEATHER_PROMPT),
-            developer_message(serde_json::to_string(&response).unwrap()),
-        ])
-        .model(model)
-        .build()
-        .with_context(|| "Failed to create summarize weather chat completion request")?;
-    let summarization = make_chat_completion_request(request).await?;
-    Ok(summarization)
+        let (_, entry) = data.iter().next().unwrap();
+        assert!(
+            !entry.weather.is_empty(),
+            "Weather description should not be empty"
+        );
+        let temp = entry
+            .temperature_f
+            .as_ref()
+            .expect("Current entry should have temperature_f");
+        assert!(
+            temp.ends_with("°F"),
+            "Temperature should end with °F: {temp}"
+        );
+        assert!(entry.sunrise.is_none());
+        assert!(entry.sunset.is_none());
+        assert!(entry.temperature_f_min.is_none());
+        assert!(entry.temperature_f_max.is_none());
+    }
+
+    #[tokio::test]
+    async fn daily_mode_returns_seven_days_with_all_fields() {
+        let data = weather_forecast_tool(inputs(SupportedMode::Daily))
+            .await
+            .expect("daily forecast failed");
+
+        assert_eq!(data.len(), 7, "Daily mode should return 7 entries");
+
+        for (day, entry) in &data {
+            assert!(
+                !entry.weather.is_empty(),
+                "Day {day}: weather description should not be empty"
+            );
+            let sunrise = entry
+                .sunrise
+                .as_ref()
+                .expect(&format!("Day {day}: should have sunrise"));
+            let sunset = entry
+                .sunset
+                .as_ref()
+                .expect(&format!("Day {day}: should have sunset"));
+            assert!(
+                sunrise < sunset,
+                "Day {day}: sunrise {sunrise} should be before sunset {sunset}"
+            );
+            let min = entry
+                .temperature_f_min
+                .as_ref()
+                .expect(&format!("Day {day}: should have temperature_f_min"));
+            let max = entry
+                .temperature_f_max
+                .as_ref()
+                .expect(&format!("Day {day}: should have temperature_f_max"));
+            assert!(min.ends_with("°F"), "Day {day}: min temp format: {min}");
+            assert!(max.ends_with("°F"), "Day {day}: max temp format: {max}");
+            assert!(
+                entry.temperature_f.is_none(),
+                "Day {day}: should not have temperature_f"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn hourly_mode_returns_entries_with_temperature_and_weather() {
+        let data = weather_forecast_tool(inputs(SupportedMode::Hourly))
+            .await
+            .expect("hourly forecast failed");
+
+        assert!(
+            data.len() > 24,
+            "Hourly mode should return more than 24 entries, got {}",
+            data.len()
+        );
+
+        for (time, entry) in &data {
+            assert!(
+                !entry.weather.is_empty(),
+                "Hour {time}: weather description should not be empty"
+            );
+            let temp = entry
+                .temperature_f
+                .as_ref()
+                .expect(&format!("Hour {time}: should have temperature_f"));
+            assert!(temp.ends_with("°F"), "Hour {time}: temp format: {temp}");
+            assert!(entry.sunrise.is_none());
+            assert!(entry.sunset.is_none());
+            assert!(entry.temperature_f_min.is_none());
+            assert!(entry.temperature_f_max.is_none());
+        }
+    }
+
+    #[tokio::test]
+    async fn print_current_forecast() {
+        let data = weather_forecast_tool(inputs(SupportedMode::Current))
+            .await
+            .expect("current forecast failed");
+        for (time, entry) in &data {
+            println!("{time}: {entry:?}");
+        }
+    }
+
+    #[tokio::test]
+    async fn print_daily_forecast() {
+        let data = weather_forecast_tool(inputs(SupportedMode::Daily))
+            .await
+            .expect("daily forecast failed");
+        for (time, entry) in &data {
+            println!("{time}: {entry:?}");
+        }
+    }
+
+    #[tokio::test]
+    async fn print_hourly_forecast() {
+        let data = weather_forecast_tool(inputs(SupportedMode::Hourly))
+            .await
+            .expect("hourly forecast failed");
+        for (time, entry) in &data {
+            println!("{time}: {entry:?}");
+        }
+    }
+
+    #[test]
+    fn wmo_weather_code_descriptions() {
+        let common_codes = [
+            (0, "Cloud development not observed"),
+            (3, "Clouds generally forming or developing"),
+            (51, "Drizzle, not freezing, continuous"),
+            (61, "Rain, not freezing, continuous"),
+            (71, "Continuous snowflakes"),
+            (95, "Thunderstorm"),
+        ];
+        for (code, expected_prefix) in common_codes {
+            let wmo = WmoWeatherCode { code };
+            let desc = wmo.description();
+            assert!(
+                desc.starts_with(expected_prefix),
+                "Code {code}: expected description starting with '{expected_prefix}', got '{desc}'"
+            );
+        }
+
+        let unknown = WmoWeatherCode { code: 255 };
+        assert_eq!(unknown.description(), "");
+    }
+
+    #[test]
+    fn temperature_display() {
+        let temp = Temperature { degrees: 72.5 };
+        assert_eq!(temp.as_fahrenheit(), "72.5°F");
+        assert_eq!(format!("{temp}"), "72.5°F");
+
+        let cold = Temperature { degrees: -10.0 };
+        assert_eq!(cold.as_fahrenheit(), "-10.0°F");
+    }
+
+    #[test]
+    fn supported_mode_from_string() {
+        use std::str::FromStr;
+        assert_eq!(
+            SupportedMode::from_str("current").unwrap(),
+            SupportedMode::Current
+        );
+        assert_eq!(
+            SupportedMode::from_str("daily").unwrap(),
+            SupportedMode::Daily
+        );
+        assert_eq!(
+            SupportedMode::from_str("hourly").unwrap(),
+            SupportedMode::Hourly
+        );
+        assert!(SupportedMode::from_str("invalid").is_err());
+    }
 }

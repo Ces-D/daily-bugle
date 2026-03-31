@@ -13,12 +13,7 @@ pub enum TimeOutTimePeriod {
 #[derive(Debug, Subcommand)]
 pub enum SocialCommand {
     #[clap(about = "Get a list of things to do in nyc")]
-    Timeout {
-        period: TimeOutTimePeriod,
-    },
-    Find {
-        query: String,
-    },
+    Timeout { period: TimeOutTimePeriod },
 }
 
 #[derive(Debug, Parser)]
@@ -27,10 +22,7 @@ pub struct SocialArgs {
     pub command: SocialCommand,
 }
 
-pub async fn handle_social_command(
-    args: SocialArgs,
-    config: config::configuration::Config,
-) -> anyhow::Result<()> {
+pub async fn handle_social_command(args: SocialArgs) -> anyhow::Result<()> {
     trace!("Starting handle_social_command");
     match args.command {
         SocialCommand::Timeout { period } => {
@@ -55,13 +47,6 @@ pub async fn handle_social_command(
                     "This should add each article content to an embedder and then get pushed to the db"
                 )
             }
-            Ok(())
-        }
-        SocialCommand::Find { query } => {
-            // let res = rag::ingestion::extract_queries_properties("gpt-oss:20b".to_string(), &query)
-            //     .await?;
-            // // let res = rag::ingestion::extract_schema("gpt-oss:20b".to_string(), &query).await?;
-            // serde_json::to_writer_pretty(std::io::stdout(), &res)?;
             Ok(())
         }
     }

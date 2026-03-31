@@ -1,6 +1,5 @@
 use anyhow::Result;
 use clap::Parser;
-use config::configuration::Config;
 use std::fmt::Display;
 use third_party_api::{
     news::{self, request_response::Article},
@@ -14,32 +13,30 @@ pub struct GoodMorningArgs {
     model: Option<String>,
 }
 
-pub async fn handle_good_morning_command(args: GoodMorningArgs, config: Config) -> Result<()> {
-    let timeout_events = time_out::scrape_things_to_do(time_out::ThingsToDoCycle::Today).await?;
-    let weather_config = config
-        .weather
-        .expect("Weather config required for this command");
-    let weather = weather::get_realtime_weather(weather::RealtimeWeatherApiUrl {
-        api_key: weather_config.api_key,
-        postal_code: weather_config.postal_code,
-        ..Default::default()
-    })
-    .await?;
-    let weather_summary = weather::summarize_weather(weather, "gpt-5-nano-2025-08-07").await?;
-    let news_config = config.news.expect("News config required for this command");
-    let top_news = news::top_headlines(news::TopHeadlinesUrl {
-        api_key: news_config.api_key,
-        sources: news_config.sources,
-        ..Default::default()
-    })
-    .await?;
-    let out = GoodMorningDisplay {
-        weather_report: weather_summary,
-        social: timeout_events.articles(),
-        news: top_news.articles,
-    };
-
-    println!("{}", out);
+pub async fn handle_good_morning_command(args: GoodMorningArgs) -> Result<()> {
+    // let config = config::read_config_file()?;
+    // let timeout_events = time_out::scrape_things_to_do(time_out::ThingsToDoCycle::Today).await?;
+    // let weather = weather::get_realtime_weather(weather::RealtimeWeatherApiUrl {
+    //     api_key: weather_config.api_key,
+    //     postal_code: weather_config.postal_code,
+    //     ..Default::default()
+    // })
+    // .await?;
+    // let weather_summary = weather::summarize_weather(weather, "gpt-5-nano-2025-08-07").await?;
+    // let news_config = config.news.expect("News config required for this command");
+    // let top_news = news::top_headlines(news::TopHeadlinesUrl {
+    //     api_key: news_config.api_key,
+    //     sources: news_config.sources,
+    //     ..Default::default()
+    // })
+    // .await?;
+    // let out = GoodMorningDisplay {
+    //     weather_report: weather_summary,
+    //     social: timeout_events.articles(),
+    //     news: top_news.articles,
+    // };
+    //
+    // println!("{}", out);
     Ok(())
 }
 

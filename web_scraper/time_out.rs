@@ -12,6 +12,8 @@ use local_storage::key::StorageKey;
 use log::trace;
 use std::{fmt::Display, sync::Arc};
 
+// TODO: hackernews, uber, figma, time_out
+
 #[derive(Debug, Clone, Copy)]
 pub enum ThingsToDoCycle {
     Today,
