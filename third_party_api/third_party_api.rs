@@ -2,14 +2,6 @@ pub mod news;
 pub mod weather;
 
 use anyhow::{Context, Result, bail};
-use async_openai::{
-    Client,
-    types::{
-        ChatCompletionRequestDeveloperMessage, ChatCompletionRequestDeveloperMessageContent,
-        ChatCompletionRequestMessage, ChatCompletionRequestSystemMessage,
-        ChatCompletionRequestSystemMessageContent, CreateChatCompletionRequest,
-    },
-};
 use log::info;
 use reqwest::header;
 use serde::Deserialize;
@@ -19,7 +11,7 @@ trait IntoUrl {
     fn into_url(self) -> url::Url;
 }
 
-pub async fn request_url<T: for<'a> Deserialize<'a>>(
+async fn request_url<T: for<'a> Deserialize<'a>>(
     url: &str,
     headers: Option<header::HeaderMap>,
 ) -> Result<T> {
@@ -55,33 +47,4 @@ pub async fn request_url<T: for<'a> Deserialize<'a>>(
                 .with_context(|| format!("Failed to deserialize json response of: {}", url))
         }
     }
-}
-
-pub fn system_message(text: &str) -> ChatCompletionRequestMessage {
-    ChatCompletionRequestMessage::System(ChatCompletionRequestSystemMessage {
-        content: ChatCompletionRequestSystemMessageContent::Text(text.to_string()),
-        ..Default::default()
-    })
-}
-
-pub fn developer_message(text: String) -> ChatCompletionRequestMessage {
-    ChatCompletionRequestMessage::Developer(ChatCompletionRequestDeveloperMessage {
-        content: ChatCompletionRequestDeveloperMessageContent::Text(text),
-        ..Default::default()
-    })
-}
-
-pub async fn make_chat_completion_request(request: CreateChatCompletionRequest) -> Result<String> {
-    let client = Client::new();
-    let response = client
-        .chat()
-        .create(request)
-        .await
-        .with_context(|| "Failed to create chat completion")?;
-    let message = response
-        .choices
-        .first()
-        .and_then(|choice| choice.message.content.clone())
-        .with_context(|| "Failed to gather first message from response")?;
-    Ok(message)
 }

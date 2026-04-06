@@ -1,20 +1,20 @@
 [package]
-name = "local_storage"
+name = "spaced_recall"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 
 [lib]
-path = "local_storage.rs"
+path = "spaced_recall.rs"
 
 [dependencies]
 anyhow.workspace = true
 chrono.workspace = true
-chrono-tz.workspace = true
-log.workspace = true
+fsrs.workspace = true
 serde.workspace = true
-serde_json.workspace = true
-tokio.workspace = true
+genai.workspace = true
+rusqlite.workspace = true
+
 
 config.workspace = true
 

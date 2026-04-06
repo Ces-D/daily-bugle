@@ -1,11 +1,12 @@
 pub mod key;
 
 use crate::key::StorageKey;
+use anyhow::Result;
 use log::{error, info, trace, warn};
 use std::{collections::HashSet, path::PathBuf};
 use tokio::{
     fs,
-    io::{AsyncReadExt, AsyncWriteExt, Error, ErrorKind, Result},
+    io::{AsyncReadExt, AsyncWriteExt},
     sync::{OnceCell, RwLock},
 };
 
@@ -31,7 +32,7 @@ struct LocalStorage {
 
 impl LocalStorage {
     pub async fn new_async() -> Result<Self> {
-        let loc = config::local_storage_dir_location();
+        let loc = config::application_storage(false)?.join("local_storage");
         if loc.exists() && loc.is_dir() {
             let mut keys = HashSet::new();
             let mut entries = fs::read_dir(&loc).await?;
@@ -80,10 +81,7 @@ impl LocalStorage {
             let insert_path = self.storage_loc.join(Into::<PathBuf>::into(key));
             if insert_path.exists() {
                 error!("Insert path already exists: {:?}", insert_path);
-                return Err(Error::new(
-                    ErrorKind::AlreadyExists,
-                    format!("File  already exists: {:?}", insert_path),
-                ));
+                anyhow::bail!(format!("File  already exists: {:?}", insert_path),)
             } else {
                 let tmp_path = insert_path.with_extension("tmp");
                 let mut f = fs::File::create(&tmp_path).await?;

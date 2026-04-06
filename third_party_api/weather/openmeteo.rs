@@ -1,7 +1,7 @@
 use anyhow::{Context, Result, bail};
 use chrono::{DateTime, TimeZone, Utc};
 use log::trace;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::fmt;
 
@@ -190,6 +190,7 @@ impl HourlyField {
 pub enum CurrentField {
     Temperature,
     WeatherCode,
+    ApparentTemperature,
 }
 
 impl CurrentField {
@@ -197,22 +198,25 @@ impl CurrentField {
         match self {
             Self::Temperature => "temperature_2m",
             Self::WeatherCode => "weather_code",
+            Self::ApparentTemperature => "apparent_temperature",
         }
     }
 }
 
 // ─── Open-Meteo JSON Response Types ─────────────────────────────────────────
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct CurrentData {
     pub time: i64,
     #[serde(default)]
     pub temperature_2m: Option<f32>,
     #[serde(default)]
     pub weather_code: Option<u16>,
+    #[serde(default)]
+    pub apparent_temperature: Option<f32>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct DailyData {
     pub time: Vec<i64>,
     #[serde(default)]
@@ -227,7 +231,7 @@ pub struct DailyData {
     pub temperature_2m_max: Option<Vec<f32>>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct HourlyData {
     pub time: Vec<i64>,
     #[serde(default)]
@@ -351,18 +355,28 @@ impl WeatherForecastBuilder {
 
 // ─── WeatherForecast ────────────────────────────────────────────────────────
 
+#[derive(Serialize)]
 pub struct WeatherForecast {
-    utc_offset_seconds: i64,
-    current: Option<CurrentData>,
-    daily: Option<DailyData>,
-    hourly: Option<HourlyData>,
+    pub utc_offset_seconds: i64,
+    pub current: Option<CurrentData>,
+    pub daily: Option<DailyData>,
+    pub hourly: Option<HourlyData>,
 }
 
 impl WeatherForecast {
     fn offset_to_datetime(&self, unix_seconds: i64) -> DateTime<Utc> {
-        Utc.timestamp_opt(unix_seconds + self.utc_offset_seconds, 0)
+        trace!(
+            "offset_to_datetime: unix_seconds={}, utc_offset_seconds={}, adjusted={}",
+            unix_seconds,
+            self.utc_offset_seconds,
+            unix_seconds + self.utc_offset_seconds
+        );
+        let dt = Utc
+            .timestamp_opt(unix_seconds + self.utc_offset_seconds, 0)
             .single()
-            .unwrap_or_default()
+            .unwrap_or_default();
+        trace!("offset_to_datetime: result={}", dt);
+        dt
     }
 
     pub fn current_time(&self) -> Result<DateTime<Utc>> {
@@ -377,6 +391,16 @@ impl WeatherForecast {
         let degrees = current
             .temperature_2m
             .context("No temperature in current data")? as f64;
+        let temp = Temperature { degrees };
+        trace!("currentTemperature: {temp}");
+        Ok(temp)
+    }
+
+    pub fn current_apparent_temperature(&self) -> Result<Temperature> {
+        let current = self.current.as_ref().context("No current data available")?;
+        let degrees = current
+            .apparent_temperature
+            .context("No apparent temperature in current data")? as f64;
         let temp = Temperature { degrees };
         trace!("currentTemperature: {temp}");
         Ok(temp)
@@ -454,10 +478,7 @@ impl WeatherForecast {
 
     pub fn daily_sunrise(&self) -> Result<Vec<DateTime<Utc>>> {
         let daily = self.daily.as_ref().context("No daily data available")?;
-        let sunrises = daily
-            .sunrise
-            .as_ref()
-            .context("No sunrise in daily data")?;
+        let sunrises = daily.sunrise.as_ref().context("No sunrise in daily data")?;
         let result: Vec<_> = sunrises
             .iter()
             .map(|&s| self.offset_to_datetime(s))
@@ -468,10 +489,7 @@ impl WeatherForecast {
 
     pub fn daily_sunset(&self) -> Result<Vec<DateTime<Utc>>> {
         let daily = self.daily.as_ref().context("No daily data available")?;
-        let sunsets = daily
-            .sunset
-            .as_ref()
-            .context("No sunset in daily data")?;
+        let sunsets = daily.sunset.as_ref().context("No sunset in daily data")?;
         let result: Vec<_> = sunsets
             .iter()
             .map(|&s| self.offset_to_datetime(s))
