@@ -107,22 +107,12 @@ async fn now_handler(profile: &Profile) -> anyhow::Result<()> {
 
 async fn today_handler(profile: &Profile) -> anyhow::Result<()> {
     let forecast = WeatherForecastBuilder::new(profile.latitude, profile.longitude)
-        .current([CurrentField::Temperature, CurrentField::WeatherCode])
         .hourly([HourlyField::Temperature, HourlyField::WeatherCode])
-        .daily([
-            DailyField::WeatherCode,
-            DailyField::Sunrise,
-            DailyField::Sunset,
-            DailyField::TemperatureMin,
-            DailyField::TemperatureMax,
-        ])
         .send()
         .await?;
 
     let output = json!({
-        "current": format_current(&forecast)?,
         "hourly": format_hourly(&forecast)?,
-        "daily": format_daily(&forecast)?,
     });
     println!("{}", serde_json::to_string_pretty(&output)?);
     Ok(())
