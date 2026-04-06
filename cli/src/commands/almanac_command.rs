@@ -91,7 +91,7 @@ fn format_daily(forecast: &WeatherForecast) -> anyhow::Result<Vec<Value>> {
 }
 
 async fn now_handler(profile: &Profile) -> anyhow::Result<()> {
-    let forecast = WeatherForecastBuilder::new(profile.latitude, profile.longitude)
+    let forecast = WeatherForecastBuilder::new(profile.latitude, profile.longitude, 1)
         .current([
             CurrentField::Temperature,
             CurrentField::WeatherCode,
@@ -106,7 +106,7 @@ async fn now_handler(profile: &Profile) -> anyhow::Result<()> {
 }
 
 async fn today_handler(profile: &Profile) -> anyhow::Result<()> {
-    let forecast = WeatherForecastBuilder::new(profile.latitude, profile.longitude)
+    let forecast = WeatherForecastBuilder::new(profile.latitude, profile.longitude, 1)
         .hourly([HourlyField::Temperature, HourlyField::WeatherCode])
         .send()
         .await?;
@@ -119,7 +119,7 @@ async fn today_handler(profile: &Profile) -> anyhow::Result<()> {
 }
 
 async fn this_week_handler(profile: &Profile) -> anyhow::Result<()> {
-    let forecast = WeatherForecastBuilder::new(profile.latitude, profile.longitude)
+    let forecast = WeatherForecastBuilder::new(profile.latitude, profile.longitude, 7)
         .daily([
             DailyField::WeatherCode,
             DailyField::Sunrise,

@@ -22,6 +22,7 @@ pub enum SupportedMode {
 pub struct WeatherForecastToolInputs {
     pub latitude: f64,
     pub longitude: f64,
+    pub forecast_days: Option<u8>,
     pub mode: SupportedMode,
 }
 
@@ -43,18 +44,30 @@ pub async fn weather_forecast_tool(
     trace!("Calling weather forecast tool.");
 
     let builder = match inputs.mode {
-        SupportedMode::Current => WeatherForecastBuilder::new(inputs.latitude, inputs.longitude)
-            .current([CurrentField::Temperature, CurrentField::WeatherCode]),
-        SupportedMode::Daily => WeatherForecastBuilder::new(inputs.latitude, inputs.longitude)
-            .daily([
-                DailyField::WeatherCode,
-                DailyField::Sunrise,
-                DailyField::Sunset,
-                DailyField::TemperatureMin,
-                DailyField::TemperatureMax,
-            ]),
-        SupportedMode::Hourly => WeatherForecastBuilder::new(inputs.latitude, inputs.longitude)
-            .hourly([HourlyField::Temperature, HourlyField::WeatherCode]),
+        SupportedMode::Current => WeatherForecastBuilder::new(
+            inputs.latitude,
+            inputs.longitude,
+            inputs.forecast_days.unwrap_or(1),
+        )
+        .current([CurrentField::Temperature, CurrentField::WeatherCode]),
+        SupportedMode::Daily => WeatherForecastBuilder::new(
+            inputs.latitude,
+            inputs.longitude,
+            inputs.forecast_days.unwrap_or(7),
+        )
+        .daily([
+            DailyField::WeatherCode,
+            DailyField::Sunrise,
+            DailyField::Sunset,
+            DailyField::TemperatureMin,
+            DailyField::TemperatureMax,
+        ]),
+        SupportedMode::Hourly => WeatherForecastBuilder::new(
+            inputs.latitude,
+            inputs.longitude,
+            inputs.forecast_days.unwrap_or(1),
+        )
+        .hourly([HourlyField::Temperature, HourlyField::WeatherCode]),
     };
 
     let forecast = builder.send().await?;
@@ -124,6 +137,7 @@ mod tests {
         WeatherForecastToolInputs {
             latitude: NYC_LAT,
             longitude: NYC_LON,
+            forecast_days: Some(1),
             mode,
         }
     }

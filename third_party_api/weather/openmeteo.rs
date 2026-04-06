@@ -6,10 +6,10 @@ use std::collections::BTreeSet;
 use std::fmt;
 
 const TIMEFORMAT: &str = "unixtime";
+const TIMEZONE: &str = "America/New_York";
 const WIND_SPEED_UNIT: &str = "mph";
 const TEMPERATURE_UNIT: &str = "fahrenheit";
 const PRECIPITATION_UNIT: &str = "inch";
-const FORECAST_DAYS: u8 = 7;
 const OPEN_METEO_FORECAST_URL: &str = "https://api.open-meteo.com/v1/forecast";
 
 // ─── Temperature ────────────────────────────────────────────────────────────
@@ -261,16 +261,18 @@ pub struct WeatherApiResponse {
 pub struct WeatherForecastBuilder {
     latitude: f64,
     longitude: f64,
+    forecast_days: u8,
     daily: Option<BTreeSet<DailyField>>,
     hourly: Option<BTreeSet<HourlyField>>,
     current: Option<BTreeSet<CurrentField>>,
 }
 
 impl WeatherForecastBuilder {
-    pub fn new(latitude: f64, longitude: f64) -> Self {
+    pub fn new(latitude: f64, longitude: f64, forecast_days: u8) -> Self {
         Self {
             latitude,
             longitude,
+            forecast_days,
             daily: None,
             hourly: None,
             current: None,
@@ -297,7 +299,8 @@ impl WeatherForecastBuilder {
             ("latitude", self.latitude.to_string()),
             ("longitude", self.longitude.to_string()),
             ("timeformat", TIMEFORMAT.to_string()),
-            ("forecast_days", FORECAST_DAYS.to_string()),
+            ("timezone", TIMEZONE.to_string()),
+            ("forecast_days", self.forecast_days.to_string()),
             ("wind_speed_unit", WIND_SPEED_UNIT.to_string()),
             ("temperature_unit", TEMPERATURE_UNIT.to_string()),
             ("precipitation_unit", PRECIPITATION_UNIT.to_string()),
@@ -371,8 +374,9 @@ impl WeatherForecast {
             self.utc_offset_seconds,
             unix_seconds + self.utc_offset_seconds
         );
+
         let dt = Utc
-            .timestamp_opt(unix_seconds + self.utc_offset_seconds, 0)
+            .timestamp_opt(unix_seconds, 0)
             .single()
             .unwrap_or_default();
         trace!("offset_to_datetime: result={}", dt);
